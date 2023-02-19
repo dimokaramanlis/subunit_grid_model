@@ -17,7 +17,7 @@ Model optimization happens on the GPU for performance reasons, but a GPU is not 
 These can be downloaded from the repository https://gin.g-node.org/gollischlab/Karamanlis_Gollisch_2023_RGC_spiketrains_natural_movies_and_subunit_models. First you need to download and unpack the datasets in the same path as the repository.
 
 ### Flashed gratings
-The script `demo_flashed_gratings.m` will guide you through data loading, model fitting. This script also uses the fitted model to generate predictions for natural images. 
+The script `demo_flashed_gratings.m` will guide you through data loading and model fitting. This script also uses the fitted model to generate predictions for natural images. 
 
 You will need datasets for which `gratingflashes_data.m` is available. You can change the path of the dataset at the beginning of the script. Model components can be visualized during the fitting process by setting the parameter `options.showfig` to `True`.
 

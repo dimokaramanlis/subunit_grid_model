@@ -42,7 +42,7 @@ params.surrsc      = gmparams(6);
 params.surrwt      = gmparams(7);
 params.outparams   = gmparams(8:end);
 
-[lf, lg] = gfmodels.funfitDoGModelParams(params, xx);    
+[lf, lg] = funfitDoGModelParams(params, xx);    
 %[lf] = gfmodels.funfitDoGModelParams(params, xx);    
 
 Np       = sum(yy);

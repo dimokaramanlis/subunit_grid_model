@@ -1,23 +1,21 @@
-function [Fout, J] = calcGaussianActivationsGrating(params, xvals)
+function [F, J] = funfitGaussianModelParams(params, xvals)
 %UNTITLED Summary of this function goes here
 %   Detailed explanation goes here
+%==========================================================================
+outparams = params.outparams;
+%==========================================================================
+% get inner prediction
+[fin, jin] = calcGaussianActivationsGrating(params.gaussparams, xvals);
 
-%==========================================================================
-spfreq = xvals(:, 1); 
-ori    = xvals(:, 2);
-%==========================================================================
-[Rf,    Rj]  = calcGaussianActivationAmplitude(params, [spfreq ori]);
-[argf, argj] = calcGaussianActivationPhase(params, xvals);
-Fout         = Rf .* cos(argf);
+% get spiking response
+[F, jout]   = rlogistic3(params.outparams, fin);
 %==========================================================================
 if nargout > 1
-    
-    J12  = (-Rf.* sin(argf)) .* argj;
-    J345 = cos(argf) .* Rj;
-    
-    J = [J12 J345];
-end
+    prefact = outparams(2)*F.*(1-F/outparams(3));
 
+    J1to5  = prefact .* jin;
+    J      = [J1to5 jout];
+end
 %==========================================================================
 end
 

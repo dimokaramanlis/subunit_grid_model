@@ -36,7 +36,7 @@ params              = otherparams;
 params.gaussparams  = gmparams(1:5); 
 params.outparams    = gmparams(6:end); 
 
-[lf, lg] = gfmodels.funfitGaussianModelParams(params, xx);    
+[lf, lg] = funfitGaussianModelParams(params, xx);    
 
 Np       = sum(yy);
 

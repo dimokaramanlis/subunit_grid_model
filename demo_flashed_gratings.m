@@ -1,7 +1,10 @@
+
+% demo_flashed_gratings
+
 % add repository path to MATLAB path
 addpath(genpath('..\subunit_grid_model'))
 %%
-
+% set experiment folder
 expfolder = '20201112_252MEA_mouse_left_half_dorsal';
 % load data from selected experiment
 expdata      = load(fullfile('..\subunit_grid_model', expfolder, 'expdata.mat'));
@@ -49,16 +52,37 @@ screenImEnsemble = flip(screenImEnsemble, 1);
 
 
 %%
-
+%--------------------------------------------------------------------------
 % select a recorded cell and print its type
-icell = 38; typestr = expdata.typelabels{expdata.cellclus_id(icell)};  
+icell = 38; icelltypeid = expdata.cellclus_id(icell);
+if icelltypeid >0, 
+    typestr = expdata.typelabels{icelltypeid};
+    else, typestr = 'Unclassified'; 
+end
 fprintf('Cell %d selected, type is %s\n', icell, typestr)
 
-cellresp   = gflashdata.trialCounts(icell, :)';
-meanresp   = accumarray(gflashdata.presentOrder, cellresp, [Ngratings 1], @mean);
-%natres     = imgseqdata.meanCounts(icell, imuse);
+cellresp    = gflashdata.trialCounts(icell, :)';
+meanresp    = accumarray(gflashdata.presentOrder, cellresp, [Ngratings 1], @mean);
+cellrespimg = imgseqdata.trialCounts(icell, :)';
+meanrespimg = accumarray(imgseqdata.presentOrder, cellrespimg, [numel(imuse)  1], @mean);
 
-% let's first get a gross estimate of the cell's RF
+tuningdata = squeeze(mean(reshape(meanresp, [Nphases, Noris, numel(barwidths)]), 1));
+%--------------------------------------------------------------------------
+% we will estimate quality measures for our cell, low quality cells may
+% show bad model fits/meaningless results
+% Symmetrized R2 is not very useful for low-trial data (<3 trials)
+
+% quality for gratings
+Ntrialspergrating = accumarray(gflashdata.presentOrder, 1, [Ngratings 1], @sum);
+gftrialrsq        = sufTrialRsq( cellresp', gflashdata.presentOrder);
+fprintf('Symmetrized R2 = %2.2f, mean trials/grating %2.1f\n', gftrialrsq, mean(Ntrialspergrating))
+
+% quality for images
+Ntrialsperimage = accumarray(imgseqdata.presentOrder, 1, [numel(imuse) 1], @sum);
+imnattrialrsq   = sufTrialRsq( cellrespimg', imgseqdata.presentOrder);
+fprintf('Symmetrized R2 = %2.2f, mean trials/image %2.1f\n', imnattrialrsq, mean(Ntrialsperimage))
+%--------------------------------------------------------------------------
+% let's first get a gross estimate of the cell's RF to locate its center
 
 csta     = reshape(2*single(stimmat)/255 - 1, screeny*screenx, Ngratings) * single(meanresp);
 csta     = reshape(csta, [screeny, screenx])/sum(meanresp);
@@ -83,134 +107,71 @@ cel     = getEllipseFromNewParams(fitprms, 2);
 %----------------------------------------------------------------------
 % We will fit progressively more complex models that are initialized based
 % on the previous model in the progression
-%----------------------------------------------------------------------
 % MODEL 1: GAUSSIAN RF                + LOGISTIC OUTPUT
 % MODEL 2: DIFFERENCE-OF-GAUSSIANS RF + LOGISTIC OUTPUT
 % MODEL 3: NONLINEAR SUBUNIT GRID     + NAKA-RUSHTON OUTPUT
-
+%==========================================================================
+% MODEL 1: GAUSSIAN RF                + LOGISTIC OUTPUT
+%==========================================================================
+% initialize
 gmdlparams  = struct();
 gmdlparams.gaussparams = fitprms(1:5);
-
-% get rmax
 rmax = min(min(fitprms(1), screenx - fitprms(1)),...
     min(fitprms(2), screeny - fitprms(2)));
 
 %----------------------------------------------------------------------
 % construct initial guess
-guessactiv = gfmodels.calcGaussianActivationsGrating(gmdlparams.gaussparams, gfdata.stiminfo);
-outguess   = gfmodels.fitRLogistic3ToSpikes(guessactiv, meanresp);
+guessactiv = calcGaussianActivationsGrating(gmdlparams.gaussparams, gflashdata.stiminfo);
+outguess   = fitRLogistic3ToSpikes(guessactiv, meanresp);
 gmdlparams.outparams = outguess;
 gmdlparams.rmax = rmax;
 
-p(1,1).select(); cla;
-ax = gca; axis equal; ax.Colormap = gray;
-xlim(fitprms(1) + [-1 1] * 60); ylim(fitprms(2) + [-1 1] * 60);
-imagesc(spX, spY, csta, [-1 1] * max(abs(csta(:))));
-line(contpts(1,:), contpts(2,:), 'Color', 'g')
-title('Data');
-tuningdata = squeeze(mean(reshape(meanresp, [Nphases, Noris, numel(barwidths)]), 1));
-%tuningdata = squeeze(max(reshape(respfit, [4, 12, 25]), [],1));
+% fit
+mdlparams1 = gfFitGaussMonotonic(gmdlparams, xstim, cellresp);
 
-p(1,4).select(); cla;
-plotLogTuning2D(barwidths, 1:Noris, tuningdata);
-caxis([0 max(tuningdata(:))])
-
-p(1,5).select(); cla;
-line(dogacts, natres,'Color','k','Marker','o', 'LineStyle','none','MarkerSize',3); 
-tstr = sprintf('Spearman rho = %2.3f', corr(dogacts', natres', 'Type', 'Spearman'));
-title(tstr)
-%----------------------------------------------------------------------
-% fit gauss + monotonic nonlin
-mdlparams1 = gfmodels.gfFitGaussMonotonic(gmdlparams, xstim, cellresp);
-
+% predict training data
 cel1      = getEllipseFromNewParams(mdlparams1.gaussparams, 2);
-lfpred    = gfmodels.funfitGaussianModelParams(mdlparams1, gfdata.stiminfo);    
-lfpredll1 = gfmodels.funfitGaussianModelParams(mdlparams1, xstim);    
+lfpred    = funfitGaussianModelParams(mdlparams1, gflashdata.stiminfo);    
+lfpredll1 = funfitGaussianModelParams(mdlparams1, xstim);    
 
 tuning1 = squeeze(mean(reshape(lfpred, [Nphases, Noris, numel(barwidths)]), 1));
 %tuning1 = squeeze(max(reshape(lfpred, [4, 12, 25]), [], 1));
 
-p(2,1).select(); cla;
-ax = gca; axis equal; ax.Colormap = gray;
-xlim(fitprms(1) + [-1 1] * 60); ylim(fitprms(2) + [-1 1] * 60);
-imagesc(spX, spY, csta, [-1 1] * max(abs(csta(:))));
-line(cel1(1,:), cel1(2,:), 'Color', 'r')
-line(noiserf(1,:), noiserf(2,:), 'Color', 'g')
+guessactiv = calcGaussianActivationsGrating(mdlparams1.gaussparams, gflashdata.stiminfo);
 
-title('Gauss Monotonic');
-
-guessactiv = gfmodels.calcGaussianActivationsGrating(mdlparams1.gaussparams, gfdata.stiminfo);
-
-p(2,3).select(); cla;
-xlim([-1 1]);
-line(guessactiv, meanresp,'Color','k','Marker','o', 'LineStyle','none','MarkerSize',3); 
-line(xvals, rlogistic3(mdlparams1.outparams,xvals), 'Color','r','Linewidth', 1.5)
-
-p(2,4).select();
-plotLogTuning2D(barwidths, 1:Noris, tuning1);
-caxis([0 max(tuningdata(:))])
 rsq1 = rsquare(meanresp, lfpred);
 nll1 = neglogliperspike(cellresp, lfpredll1);
-title(sprintf('Rsq = %2.3f, nLL/spike = %2.3f', rsq1, nll1))
 
-imacts1 = predictGaussModel(mdlparams1, screenImEnsemble, rangeX, screeny - rangeY);
-imacts1r = imacts1 .*( imacts1 >0);
+% predict natural image activations
+imacts1 = predictGaussModel(mdlparams1, screenImEnsemble, rrx, rry);
+rho1    = corr(imacts1', meanrespimg(imuse), 'Type', 'Spearman');
 
-p(2,5).select(); cla;
-line(imacts1, natres,'Color','k','Marker','o', 'LineStyle','none','MarkerSize',3); 
-tstr = sprintf('Spearman rho = %2.3f', corr(imacts1', natres', 'Type', 'Spearman'));
-title(tstr)
-
-%----------------------------------------------------------------------
+%==========================================================================
+% MODEL 2: DIFFERENCE-OF-GAUSSIANS RF + LOGISTIC OUTPUT
+%==========================================================================
 % fit circ gauss + surround
 mdlparams2 = mdlparams1;
 mdlparams2.surrsc = 2;
 mdlparams2.surrwt = 0.1;
 
-mdlparams2 = gfmodels.gfFitDoGMonotonic(mdlparams2, xstim, cellresp);
+mdlparams2 = gfFitDoGMonotonic(mdlparams2, xstim, cellresp);
 
 cel2   = getEllipseFromNewParams(mdlparams2.gaussparams, 2);
-lfpred2   = gfmodels.funfitDoGModelParams(mdlparams2, gfdata.stiminfo);   
-lfpredll2 = gfmodels.funfitDoGModelParams(mdlparams2, xstim);    
+lfpred2   = funfitDoGModelParams(mdlparams2, gflashdata.stiminfo);   
+lfpredll2 = funfitDoGModelParams(mdlparams2, xstim);    
 tuning2 = squeeze(mean(reshape(lfpred2, [Nphases, Noris, numel(barwidths)]), 1));
 
-%tuning2 = squeeze(max(reshape(lfpred2, [4, 12, 25]),[], 1));
+guessactiv = calcDoGActivationsGrating(mdlparams2, gflashdata.stiminfo);
 
-guessactiv = gfmodels.calcDoGActivationsGrating(mdlparams2, gfdata.stiminfo);
-
-p(3,1).select(); cla;
-ax = gca; axis equal; ax.Colormap = gray;
-xlim(fitprms(1) + [-1 1] * 60); ylim(fitprms(2) + [-1 1] * 60);
-imagesc(spX, spY, csta, [-1 1] * max(abs(csta(:))));
-line(cel2(1,:), cel2(2,:), 'Color', 'r')
-line(noiserf(1,:), noiserf(2,:), 'Color', 'g')
-title('DoG Monotonic');
-
-
-p(3,3).select(); cla;
-xlim([-1 1] * max(abs(guessactiv)));
-line(guessactiv, meanresp,'Color','k','Marker','o', 'LineStyle','none','MarkerSize',3); 
-line(xvals, rlogistic3(mdlparams2.outparams,xvals), 'Color','r','Linewidth', 1.5)
-
-
-p(3,4).select();
-plotLogTuning2D(barwidths, 1:Noris, tuning2);
-caxis([0 max(tuningdata(:))])
-rsq2 = rsquare(meanresp, lfpred2);
-nll2 = neglogliperspike(cellresp, lfpredll2);
-title(sprintf('Rsq = %2.3f, nLL/spike = %2.3f', rsq2, nll2))
+% predict natural image activations
 
 imacts2 = predictDogModel(mdlparams2, screenImEnsemble);
-
-p(3,5).select(); cla;
-xlim([-1 1] * max(abs(imacts2)));
-line(imacts2, natres,'Color','k','Marker','o', 'LineStyle','none','MarkerSize',3); 
-tstr = sprintf('Spearman rho = %2.3f', corr(imacts2', natres', 'Type', 'Spearman'));
-title(tstr)
+rho2    = corr(imacts2',meanrespimg(imuse), 'Type', 'Spearman');
+%==========================================================================
+% MODEL 3: NONLINEAR SUBUNIT GRID     + NAKA-RUSHTON OUTPUT
+%==========================================================================
 mdlparams2.pxsize = pxsize;
 
-%----------------------------------------------------------------------
-%%
 ops.batchsize = 64;
 ops.eta = 0.01;
 ops.beta1 = .9;
@@ -365,168 +326,9 @@ title(tstr)
 % % 
 
 %%
-ops.lambda  = 1e-4;
-
-tic;%
-[mdlparams4,~] = gfmodels.gfFitNonlinearSubunitDoubleGapL1(mdlparams3, xstim, cellresp, ops);
-toc;
-
-Rsubson    = gfmodels.calcSubunitGridOutputs(mdlparams4.onparams, gfdata.stiminfo);
-suboutson  = rlogistic2(mdlparams4.onparams.subparams, Rsubson);
-suboutson  = reshape(suboutson, size(Rsubson));
-Rsubsoff   = gfmodels.calcSubunitGridOutputs(mdlparams4.offparams, gfdata.stiminfo);
-suboutsoff = rlogistic2(mdlparams4.offparams.subparams, Rsubsoff);
-suboutsoff = reshape(suboutsoff, size(Rsubson));
-insig      = suboutson * mdlparams4.onparams.subwts + ...
-   suboutsoff * mdlparams4.offparams.subwts + mdlparams4.bconst;
-lfpred4    = mdlparams4.outparams./(1 + exp(-insig));
-
-tuning4 = squeeze(mean(reshape(lfpred4, [4, Noris, numel(barwidths)]), 1));
-
-sum4   = sum(mdlparams4.onparams.subwts) + sum(mdlparams4.offparams.subwts);
-activ4 = (insig - mdlparams4.bconst)/sum4;
-activ4 = gather(activ4);
-outuse = [mdlparams4.bconst sum4 mdlparams4.outparams];
-
-
-
-Rsubson    = gfmodels.calcSubunitGridOutputs(mdlparams4.onparams, xstim);
-suboutson  = rlogistic2(mdlparams4.onparams.subparams, Rsubson);
-suboutson  = reshape(suboutson, size(Rsubson));
-Rsubsoff   = gfmodels.calcSubunitGridOutputs(mdlparams4.offparams, xstim);
-suboutsoff = rlogistic2(mdlparams4.offparams.subparams, Rsubsoff);
-suboutsoff = reshape(suboutsoff, size(Rsubson));
-insig      = suboutson * mdlparams4.onparams.subwts + ...
-   suboutsoff * mdlparams4.offparams.subwts + mdlparams4.bconst;
-lfpredll4   = mdlparams4.outparams./(1 + exp(-insig));
-
-
-xout = linspace(min(activ4), max(activ4));
-p(5,3).select(); cla;
-xlim([min(activ4) max(activ4)]);
-line(activ4, meanresp,'Color','k','Marker','o', 'LineStyle','none','MarkerSize',3); 
-line(xout, rlogistic3(outuse,xout), 'Color','r','Linewidth', 1.5)
-
-
-p(5,4).select(); cla;
-plotLogTuning2D(barwidths, 1:Noris, tuning4);
-caxis([0 max(tuningdata(:))])
-rsq4 = rsquare(meanresp, lfpred4);
-nll4 = neglogliperspike(cellresp, lfpredll4);
-title(sprintf('Rsq = %2.3f, nLL/spike = %2.3f', rsq4, nll4))
-
-oox = round((range(rangeX))/2);
-ooy = round((range(rangeY))/2);
-
-newRangeX = round(mdlparams4.onparams.gridcent(1)) + (-oox:oox);
-newRangeY = round(mdlparams4.onparams.gridcent(2)) + (-ooy:ooy);
-
-imacts4 = predictDoubleSubunitModel(mdlparams4, screenImEnsemble, newRangeX, newRangeY);
-imacts4 = gather(imacts4);
-
-
-p(5,5).select(); cla;
-xlim([min(imacts4) max(imacts4)]);
-line(imacts4, natres,'Color','k','Marker','o', 'LineStyle','none','MarkerSize',3); 
-tstr = sprintf('Spearman rho = %2.3f', corr(imacts4', natres', 'Type', 'Spearman'));
-title(tstr)
-
-
-
-%%
-tic;
-mdlparams4 = gfmodels.gfFitNonlinearSubunitUshapeMleFastMahal(mdlparams3, xstim, cellresp);
-%mdlparams3 = gfmodels.gfFitNonlinearSubunitSingleMleGauss(mdlparams2, xstim, cellresp);
-toc;
-
-Rsubs          = gfmodels.calcSubunitGridOutputs(mdlparams4, gfdata.stiminfo);
-subunitoutputs = ulogistic5gpu(mdlparams4.subparams, Rsubs);
-subunitoutputs = reshape(subunitoutputs, size(Rsubs));
-insig          = subunitoutputs * mdlparams4.subwts + mdlparams4.bconst;
-lfpred4        = mdlparams4.outparams./(1 + exp(-insig));
-
-%tuning3 = squeeze(max(reshape(lfpred3, [4, 12, 25]),[], 1));
-tuning4 = squeeze(mean(reshape(lfpred4, [4, Noris, numel(barwidths)]), 1));
-
-activ4 = subunitoutputs * mdlparams4.subwts/sum(mdlparams4.subwts);
-activ4 = gather(activ4);
-outuse = [mdlparams4.bconst sum(mdlparams4.subwts) mdlparams4.outparams];
-
-Rsubs          = gfmodels.calcSubunitGridOutputs(mdlparams4, xstim);
-subunitoutputs = ulogistic5gpu(mdlparams4.subparams, Rsubs);
-subunitoutputs = reshape(subunitoutputs, size(Rsubs));
-insig          = subunitoutputs * mdlparams4.subwts + mdlparams4.bconst;
-lfpredll4      = mdlparams4.outparams./(1 + exp(-insig));
-
-[imrf,pxranges] = generateSubunitImage(mdlparams4, fitprms(1:2), 60);
-
-p(5,1).select(); cla;
-axis square;
-xlim(fitprms(1) + [-1 1] * 60); ylim(fitprms(2) + [-1 1] * 60);
-imagesc(pxranges(:,1), pxranges(:,2), imrf,[0 1])
-line(contpts(1,:), contpts(2,:), 'Color', 'g')
-ax =gca; ax.Colormap = flipud(gray);
-title('Subunit Grid Monotonic')
-% 
-p(5,2,1).select(); cla;
-axis square;
-outplot =  gfmodels.linedogplot(mdlparams4.subsigma * pxsize,...
-        mdlparams4.subsurrsc, mdlparams4.subsurrwt, sizesub);
-line(sizesub, outplot); xlim([min(sizesub) max(sizesub)]);
-xlabel('X position (um)')
-title(sprintf('Sub. diam = %d um', round(4 * mdlparams4.subsigma * pxsize)))
-
-p(5,2,2).select(); cla;
-axis square;
-nlnplot  = ulogistic5(mdlparams4.subparams, xvals);
-nlnplot  = nlnplot/max(nlnplot);
-line(xvals, nlnplot); xlim([-1 1]); ylim([0 1]);
-xlabel('Subunit input'); ylabel('Subunit output')
-
-% 
-xout = linspace(min(activ4), max(activ4));
-p(5,3).select(); cla;
-xlim([min(activ4) max(activ4)]);
-line(activ4, meanresp,'Color','k','Marker','o', 'LineStyle','none','MarkerSize',3); 
-line(xout, rlogistic3(outuse,xout), 'Color','r','Linewidth', 1.5)
-
-% 
-p(5,4).select(); cla;
-surf(barwidths, 1:Noris, tuning4, 'EdgeColor', 'none'); view(2);
-caxis([0 max(tuningdata(:))])
-rsq4 = rsquare(meanresp, lfpred4);
-nll4 = neglogliperspike(cellresp, lfpredll4);
-title(sprintf('Rsq = %2.3f, nLL/spike = %2.3f', rsq4, nll4))
-
-
-imacts4 = predictUSubunitModel(mdlparams4, screenImEnsemble, rangeX, screeny - rangeY);
-imacts4 = gather(imacts4);
-
-p(5,5).select(); cla;
-xlim([min(imacts4) max(imacts4)]);
-line(imacts4, natres,'Color','k','Marker','o', 'LineStyle','none','MarkerSize',3); 
-tstr = sprintf('Spearman rho = %2.3f', corr(imacts4', natres', 'Type', 'Spearman'));
-title(tstr)
-
-sufacts = predictUSubunitModel(mdlparams4, sufImEnsemble, rangeX, screeny - rangeY);
-sufinsig = sufacts*sum( mdlparams4.subwts) + mdlparams4.bconst;
-sufpreds  = mdlparams4.outparams./(1 + exp(-sufinsig));
-xcon = linspace(-1, 1, 2*sufdata.stimPara.ncontrasts +1);
-
-figure;
-sufresp = reshape(sufpreds,17,17);
-subplot(1,3,1); 
-imagesc(xcon,xcon,sufresp)
-ax = gca; ax.YDir = 'normal'; 
-axis equal; xlim([-1 1]); ylim([-1 1])
-subplot(1,3,2);
-contour(xcon,xcon,sufresp)
-ax = gca; ax.YDir = 'normal'; 
-axis equal; xlim([-1 1]); ylim([-1 1])
-subplot(1,3,3);
-plot(sufinsig, sufdata.meanCounts(icell,:),'o')
-sufcorr = corr(sufinsig', sufdata.meanCounts(icell,:)', 'Type','Spearman');
-title(sprintf('corr: %2.3f', sufcorr))
+% Let's finally make a nice summary plot with all of our results! You can
+% navigate all cells and experiments to get an understanding of their
+% nonlinear RF properties!
 
 
 
