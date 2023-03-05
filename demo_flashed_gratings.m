@@ -75,12 +75,12 @@ tuningdata = squeeze(mean(reshape(meanresp, [Nphases, Noris, numel(barwidths)]),
 % quality for gratings
 Ntrialspergrating = accumarray(gflashdata.presentOrder, 1, [Ngratings 1], @sum);
 gftrialrsq        = sufTrialRsq( cellresp', gflashdata.presentOrder);
-fprintf('Symmetrized R2 = %2.2f, mean trials/grating %2.1f\n', gftrialrsq, mean(Ntrialspergrating))
+fprintf('Grating symmetrized R2 = %2.2f, mean trials/grating = %2.1f\n', gftrialrsq, mean(Ntrialspergrating))
 
 % quality for images
 Ntrialsperimage = accumarray(imgseqdata.presentOrder, 1, [numel(imuse) 1], @sum);
 imnattrialrsq   = sufTrialRsq( cellrespimg', imgseqdata.presentOrder);
-fprintf('Symmetrized R2 = %2.2f, mean trials/image %2.1f\n', imnattrialrsq, mean(Ntrialsperimage))
+fprintf('Image   symmetrized R2 = %2.2f, mean trials/image = %2.1f\n', imnattrialrsq, mean(Ntrialsperimage))
 %--------------------------------------------------------------------------
 % let's first get a gross estimate of the cell's RF to locate its center
 
@@ -179,7 +179,7 @@ ops.beta2 = .999;
 ops.epsmall = 1e-6;
 ops.lambda = 1e-4;
 ops.showfig = true;
-ops.Nepochs = round(4e5/size(gfdata.trialCounts,2));
+ops.Nepochs = round(4e5/numel( gflashdata.presentOrder));
 ops.delaylambda = false;
 ops.delaysubunit = false;
 % 
@@ -195,24 +195,7 @@ tic;
 [mdlparams3, ~, ~] = gfmodels.gfFitNonlinearSubunitGapL1swish(...
     mdlparams2, xstim, cellresp, ops,false);
 toc;
-%%
 
-ops.lambda = 1e-2;
-tic;
-mdlparams3 = gfmodels.gfFitSubGridBasis3(mdlparams2, xstim, cellresp,ops);
-toc;
-
-% mdlarray = gather([mdlparams3.subwts; mdlparams3.subsigma; mdlparams3.subsurrsc;...
-%     mdlparams3.subsurrwt; mdlparams3.subparams; mdlparams3.bconst; mdlparams3.outparams]);
-% calcCoverageFactor(mdlarray',mdlparams3.gridcent)
-% tic;
-% [mdlparams3, ~, ~] = gfmodels.gfFitNonlinearSubunitGapMonoOut(mdlparams2, gfdata.stiminfo, respfit, ops);
-% toc;
-
-% tic;
-% %mdlparams3 = gfmodels.gfFitNonlinearSubunitSingleMleFast(mdlparams2, xstim, cellresp);
-% mdlparams3 = gfmodels.gfFitNonlinearSubunitSingle2(mdlparams2, xstim, cellresp);
-% toc;
 %%
 Rsubs          = gfmodels.calcSubunitGridOutputsExp(mdlparams3, gfdata.stiminfo);
 %subunitoutputs = rlogistic2(mdlparams3.subparams, Rsubs);
