@@ -120,53 +120,11 @@ for ibatch = 1:Nbatches
     mup = mw/(1 - beta1^ibatch);
     uup = uw/(1 - beta2^ibatch);
     
+    % parameter update
     newparams = oldparams - etause * mup./(sqrt(uup) + epsmall);
-    
-    % do adan
-%     
-%     beta3 = 1-0.01;
-%     beta2 = 1 - 0.08;
-%     beta1 = 1 - 0.02;
-%     lw = 0.02;
-%     
-%     
-%     if ibatch == 1
-%         iuse1   = iorder(1:batchsize);
-%         iuse2   = iorder(batchsize+1:2*batchsize);
-%         [~, gbatch1] = gfmodels.mleGradSubGapL1swish(mdlparams, ...
-%             xstim, yuse, ArgSubs, iuse1, luse, wd);
-%         [~, gbatch2] = gfmodels.mleGradSubGapL1swish(mdlparams, ...
-%             xstim, yuse, ArgSubs, iuse2, luse, wd);
-%         gproj1 = boundedProjectedGradient(gbatch1, oldparams, lb, ub);
-%         gproj2 = boundedProjectedGradient(gbatch2, oldparams, lb, ub);
-%         mwold = gproj1;
-%         uwold = gproj2 - gproj1;
-%         gprojold = gproj;
-%         nwold = (gproj2 + beta2 * (gproj2 - gproj1)).^2;
-%     end
-%     
-%    
-%     mw = beta1 * mwold +(1-beta1) * gproj;
-%     uw = beta2 * uwold +(1-beta2) * (gproj - gprojold);
-%     nw = beta3 * nwold + (1-beta3) * (gproj + beta2 * (gproj - gprojold)).^2;
-%     
-%     mwold = mw;
-%     uwold = uw;
-%     nwold = nw;
-%     gprojold = gproj;
-%     
-%     etaw = eta./sqrt(nw + epsmall);
-%     
-%     newparams = (1 + lw * eta)^-1 * (oldparams - etaw.*(mw + beta2 * uw));
-    
-    
+   
     % project result
     newparams = boundedProjectedValues(newparams, lb, ub);
-    
-    if delaysubunit && ibatch < ceil(Nepochs * 0.1 * Ndata/batchsize)
-        newparams(Nsubs + (1:3)) = oldparams(Nsubs + (1:3));
-        %newparams(Nsubs + 6) = oldparams(Nsubs + 6);
-    end
 
     mdlparams.subwts   = newparams(1:Nsubs);
     mdlparams.subsigma = newparams(Nsubs + 1);
@@ -181,19 +139,6 @@ for ibatch = 1:Nbatches
         errall(ibatch) = neglogliperspike(yuse, fall);
         xerr(ibatch) = ibatch;
     end
-    %--------------------------------------------------------------------
-%     if mod(ibatch, 20) == 1
-%         [gparams, rfimage] = gfmodels.fitCenterGaussSurr(mdlparams);
-%         gaussp = getGaussFromNewParams(gparams);
-%         mdlparams.gaussparams = gparams;
-%         
-%         elipcentvals  = [mdlparams.subcnts(:,1) - gaussp.mu(1), ...
-%             mdlparams.subcnts(:,2)- gaussp.mu(2)];
-%         mahalobisDist = sqrt(sum(elipcentvals / (gaussp.sigma) .* elipcentvals,2));
-%         mahalobisDist = 2 - exp(-mahalobisDist.^2/2);
-%     end
-    
-    
     %--------------------------------------------------------------------
     if showfig && mod(ibatch, 60) == 1
                
@@ -221,7 +166,7 @@ for ibatch = 1:Nbatches
         line(xnln, subvals,'Color', 'b');
 
         subplot(1,5,4);cla;
-        outplot =  gfmodels.linedogplot(mdlparams.subsigma*pxsize,...
+        outplot =  linedogplot(mdlparams.subsigma*pxsize,...
             mdlparams.subsurrsc, mdlparams.subsurrwt, sizesub);
         line(sizesub, outplot);
         drawnow;
@@ -253,7 +198,7 @@ isilence1 = mdlparams.subwts < max(mdlparams.subwts(~iedge))*.05;
 mdlparams.subwts(isilence1)   = 0;
 
 
-[gparams, ~] = gfmodels.fitCenterGaussSurr(mdlparams);
+[gparams, ~] = fitCenterGaussSurr(mdlparams);
 mdlparams.gaussparams = gparams;
 c = getEllipseFromNewParams(mdlparams.gaussparams, 2.5);
 isilence2 = ~inpolygon(mdlparams.subcnts(:,1), mdlparams.subcnts(:,2), ...
@@ -265,7 +210,7 @@ mdlparams.subwts = oldsum*mdlparams.subwts/sum(mdlparams.subwts);
 isilence = isilence2 | isilence1 | iedge;
 % refit output
 
-Rf           = gfmodels.calcSubunitActivationAmplitudes(mdlparams, xvals(:, 1));
+Rf           = calcSubunitActivationAmplitudes(mdlparams, xvals(:, 1));
 subacts      = Rf .* ArgSubs(:, ~isilence);
 RsubsNlin    = rlogistic2gpu(mdlparams.subparams, subacts);
 RsubsNlin    = reshape(RsubsNlin, size(subacts));
@@ -296,7 +241,7 @@ mdlparams.outbase   = fitprms(4);
 % mdlparams.outparams = fitprms(3);
 %==========================================================================
 
-fall           = gfmodels.mleGradSubGapL1swish(mdlparams, xstim, yuse, ArgSubs, 1:numel(yuse), lambda);
+fall           = mleGradSubunitGridModel(mdlparams, xstim, yuse, ArgSubs, 1:numel(yuse), lambda);
 errall(ibatch) = neglogliperspike(yuse, fall);
 xerr(ibatch) = ibatch;
 xerr   = gather(xerr(~isnan(xerr))*batchsize/Ndata);

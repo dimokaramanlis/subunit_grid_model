@@ -36,33 +36,11 @@ subfilters  = subfilters./(2 * pi * mdlparams.subsigma^2);
 subacts  = cwt*subfilters' * imenuse;
 %subacts  = subacts/max(subacts(:));
 
-if numel(mdlparams.subparams) == 2
-    subactsn = reshape(rlogistic2(mdlparams.subparams, subacts), size(subacts));
-else
-    subactsn = reshape(subnonlinbasis(mdlparams, subacts), size(subacts));
-end
+subactsn = reshape(rlogistic2(mdlparams.subparams, subacts), size(subacts));
 
-%impreds = subwts' * subactsn + mdlparams.bconst;
 
 impreds = subwts' * subactsn;
 
-
-
-% subfilters = (xuse(:) - xcents').^2 + (yuse(:) - ycents').^2;
-% %subfilters(sqrt(subfilters) > pxarr) = NaN; % filter useless values
-% subfiltersc = exp(-subfilters/(2* mdlparams.subsigma^2));
-% subfilterss = subfiltersc.^(mdlparams.subsurrsc^-2);
-% 
-% 
-% subacts  = (subfiltersc' * imenuse - ...
-%     subfilterss' * imenuse*mdlparams.subsurrwt/(mdlparams.subsurrsc^2))/...
-%     (2 * pi * mdlparams.subsigma^2);
-% 
-% subactsn = reshape(rlogistic2(mdlparams.subparams, subacts), size(subacts));
-% impreds = subwts' * subactsn + mdlparams.bconst;
-% 
-% 
-% 
 
 
 

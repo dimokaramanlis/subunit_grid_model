@@ -49,13 +49,11 @@ screenImEnsemble = zeros( screeny, screenx, Nnatimages, 'single');
 screenImEnsemble((screeny-Nnaty)/2+1:(screeny+Nnaty)/2, ...
     (screenx-Nnatx)/2+1:(screenx+Nnatx)/2, :) = 2*single(imEnsemble)/255-1;
 screenImEnsemble = flip(screenImEnsemble, 1);
-
-
 %%
 %--------------------------------------------------------------------------
 % select a recorded cell and print its type
-icell = 38; icelltypeid = expdata.cellclus_id(icell);
-if icelltypeid >0, 
+icell = 38; icelltypeid = expdata.cellclus_id(icell); %38
+if icelltypeid >0,
     typestr = expdata.typelabels{icelltypeid};
     else, typestr = 'Unclassified'; 
 end
@@ -190,27 +188,11 @@ mdlparams3init = gfFitSubunitGridModel(mdlparams2, xstim, cellresp, opts,true);
 opts.lambda                = 1e-4;
 [mdlparams3, xerr, errfit] = gfFitSubunitGridModel(mdlparams3init, xstim, cellresp, opts,false);
 
-% 
-% tic;
-% [mdlparams3, ~, ~] = gfmodels.gfFitRank(mdlparams2, gfdata.stiminfo, respfit, ops);
-% toc;
 
-% tic;
-% [mdlparams3, ~, ~] = gfmodels.gfFitNonlinearSubunitGapL1(...
-%     mdlparams2, xstim, cellresp, ops);
-% toc;
-tic;
-[mdlparams3, ~, ~] = gfmodels.gfFitNonlinearSubunitGapL1swish(...
-    mdlparams2, xstim, cellresp, opts,false);
-toc;
-
-%%
-Rsubs          = gfmodels.calcSubunitGridOutputsExp(mdlparams3, gfdata.stiminfo);
-%subunitoutputs = rlogistic2(mdlparams3.subparams, Rsubs);
-subunitoutputs = subnonlinbasis(mdlparams3, Rsubs);
+Rsubs          = calcSubunitGridOutputs(mdlparams3, gflashdata.stiminfo);
+subunitoutputs = rlogistic2(mdlparams3.subparams, Rsubs);
 subunitoutputs = reshape(subunitoutputs, size(Rsubs));
-insig          = subunitoutputs * mdlparams3.subwts + mdlparams3.bconst;
-% lfpred3        = mdlparams3.outparams./(1 + exp(-insig));
+insig          = subunitoutputs * mdlparams3.subwts;
 lfpred3        = nakarushton( mdlparams3.outparams, insig);
 
 %tuning3 = squeeze(max(reshape(lfpred3, [4, 12, 25]),[], 1));
@@ -221,95 +203,23 @@ activ3 = gather(activ3);
 %outuse = [mdlparams3.bconst sum(mdlparams3.subwts) mdlparams3.outparams];
 
 
-Rsubs          = gfmodels.calcSubunitGridOutputsExp(mdlparams3, xstim);
-%subunitoutputs = rlogistic2(mdlparams3.subparams, Rsubs);
-subunitoutputs = subnonlinbasis(mdlparams3, Rsubs);
+Rsubs          = calcSubunitGridOutputs(mdlparams3, xstim);
+subunitoutputs = rlogistic2(mdlparams3.subparams, Rsubs);
 
 subunitoutputs = reshape(subunitoutputs, size(Rsubs));
-insig          = subunitoutputs * mdlparams3.subwts + mdlparams3.bconst;
-%lfpredll3      = mdlparams3.outparams./(1 + exp(-insig));
+insig          = subunitoutputs * mdlparams3.subwts;
 lfpredll3      = nakarushton( mdlparams3.outparams, insig);
 
-[imrf,pxranges] = generateSubunitImage(mdlparams3, fitprms(1:2), 60);
+imacts3 = predictSingleSubunitModel(mdlparams3, screenImEnsemble, rrx, rry);
 
-p(4,1).select(); cla;
-axis square;
-xlim(fitprms(1) + [-1 1] * 60); ylim(fitprms(2) + [-1 1] * 60);
-imagesc(pxranges(:,1), pxranges(:,2), imrf,[0 1])
-line(contpts(1,:), contpts(2,:), 'Color', 'g')
-ax =gca; ax.Colormap = flipud(gray);
-title('Subunit Grid Monotonic')
-% 
-p(4,2,1).select(); cla;
-axis square; xlim([-1 1] * 130); ylim([-0.2 1])
-outplot =  gfmodels.linedogplot(mdlparams3.subsigma * pxsize,...
-        mdlparams3.subsurrsc, mdlparams3.subsurrwt, sizesub);
-line(sizesub, outplot); xlim([min(sizesub) max(sizesub)]);
-xlabel('X position (um)')
-title(sprintf('Sub. diam = %d um', round(4 * mdlparams3.subsigma * pxsize)))
-
-p(4,2,2).select(); cla;
-axis square;
-nlnplot  = rlogistic2(mdlparams3.subparams, xvals);
-nlnplot  = nlnplot/max(nlnplot);
-line(xvals, nlnplot); xlim([-1 1]); ylim([0 1]);
-xlabel('Subunit input'); ylabel('Subunit output')
-
-% 
-xout = linspace(min(activ3), max(activ3));
-p(4,3).select(); cla;
-xlim([min(activ3) max(activ3)]);
-line(activ3, meanresp,'Color','k','Marker','o', 'LineStyle','none','MarkerSize',3); 
-%line(xout, rlogistic3(outuse,xout), 'Color','r','Linewidth', 1.5)
-line(xout, nakarushton(mdlparams3.outparams,xout), 'Color','r','Linewidth', 1.5)
-
-% 
-p(4,4).select(); cla;
-plotLogTuning2D(barwidths, 1:Noris, tuning3);
-caxis([0 max(tuningdata(:))])
-rsq3 = rsquare(meanresp, lfpred3);
-nll3 = neglogliperspike(cellresp, lfpredll3);
-title(sprintf('Rsq = %2.3f, nLL/spike = %2.3f', rsq3, nll3))
+rho3  = corr(imacts3',meanrespimg(imuse), 'Type', 'Spearman');
 %%
-imacts3 = predictSingleSubunitModel(mdlparams3, screenImEnsemble, rangeX, screeny - rangeY);
 
-p(4,5).select(); cla;
-xlim(gather([min(imacts3) max(imacts3)]));
-line(imacts3, natres,'Color','k','Marker','o', 'LineStyle','none','MarkerSize',3); 
-tstr = sprintf('Spearman rho = %2.3f', corr(imacts3', natres', 'Type', 'Spearman'));
-title(tstr)
-% 
-% [~, graySuf ]= sufImg( sufdata.stimPara, screenx, screeny);
-% [cta, ctb, Ncombis, prs] = findSubunitFlashOrder(sufdata.stimPara, 1000);
-% 
-% sufImEnsemble = zeros(screeny, screenx, numel(cta),'single');
-% for ii = 1:numel(cta)
-%     currim = zeros(screeny, screenx,'single');
-%     currim(graySuf<0) = ctb(ii);
-%     currim(graySuf>0) = cta(ii);
-%     sufImEnsemble(:, :, ii) = currim;
-% end
-% 
-% sufImEnsemble = flip(sufImEnsemble, 1);
-% sufacts = predictSingleSubunitModel(mdlparams3, sufImEnsemble, rangeX, screeny - rangeY);
-% sufinsig = sufacts*sum( mdlparams3.subwts) + mdlparams3.bconst;
-% sufpreds  = mdlparams3.outparams./(1 + exp(-sufinsig));
-% xcon = linspace(-1, 1, 2*sufdata.stimPara.ncontrasts +1);
-% 
-% figure;
-% sufresp = reshape(sufpreds,17,17);
-% subplot(1,3,1); 
-% imagesc(xcon,xcon,sufresp)
-% ax = gca; ax.YDir = 'normal'; 
-% axis equal; xlim([-1 1]); ylim([-1 1])
-% subplot(1,3,2);
-% contour(xcon,xcon,sufresp)
-% ax = gca; ax.YDir = 'normal'; 
-% axis equal; xlim([-1 1]); ylim([-1 1])
-% subplot(1,3,3);
-% plot(sufinsig, sufdata.meanCounts(icell,:),'o')
-% sufcorr = corr(sufinsig', sufdata.meanCounts(icell,:)', 'Type','Spearman');
-% title(sprintf('corr: %2.3f', sufcorr))
+
+% Let's finally make a nice summary plot with all of our results! You can
+% navigate all cells and experiments to get an understanding of their
+% nonlinear RF properties!
+
 
 % savepath = 'C:\Users\Karamanlis_Dimokrati\Documents\DimosFolder\conferences\202107_retinal circuits symposium\poster';
 % filename = 'example_onoffcell.pdf';
@@ -317,9 +227,45 @@ title(tstr)
 % % 
 
 %%
-% Let's finally make a nice summary plot with all of our results! You can
-% navigate all cells and experiments to get an understanding of their
-% nonlinear RF properties!
 
 
-
+% [imrf,pxranges] = generateSubunitImage(mdlparams3, fitprms(1:2), 60);
+% 
+% p(4,1).select(); cla;
+% axis square;
+% xlim(fitprms(1) + [-1 1] * 60); ylim(fitprms(2) + [-1 1] * 60);
+% imagesc(pxranges(:,1), pxranges(:,2), imrf,[0 1])
+% line(contpts(1,:), contpts(2,:), 'Color', 'g')
+% ax =gca; ax.Colormap = flipud(gray);
+% title('Subunit Grid Monotonic')
+% % 
+% p(4,2,1).select(); cla;
+% axis square; xlim([-1 1] * 130); ylim([-0.2 1])
+% outplot =  gfmodels.linedogplot(mdlparams3.subsigma * pxsize,...
+%         mdlparams3.subsurrsc, mdlparams3.subsurrwt, sizesub);
+% line(sizesub, outplot); xlim([min(sizesub) max(sizesub)]);
+% xlabel('X position (um)')
+% title(sprintf('Sub. diam = %d um', round(4 * mdlparams3.subsigma * pxsize)))
+% 
+% p(4,2,2).select(); cla;
+% axis square;
+% nlnplot  = rlogistic2(mdlparams3.subparams, xvals);
+% nlnplot  = nlnplot/max(nlnplot);
+% line(xvals, nlnplot); xlim([-1 1]); ylim([0 1]);
+% xlabel('Subunit input'); ylabel('Subunit output')
+% 
+% % 
+% xout = linspace(min(activ3), max(activ3));
+% p(4,3).select(); cla;
+% xlim([min(activ3) max(activ3)]);
+% line(activ3, meanresp,'Color','k','Marker','o', 'LineStyle','none','MarkerSize',3); 
+% %line(xout, rlogistic3(outuse,xout), 'Color','r','Linewidth', 1.5)
+% line(xout, nakarushton(mdlparams3.outparams,xout), 'Color','r','Linewidth', 1.5)
+% 
+% % 
+% p(4,4).select(); cla;
+% plotLogTuning2D(barwidths, 1:Noris, tuning3);
+% caxis([0 max(tuningdata(:))])
+% rsq3 = rsquare(meanresp, lfpred3);
+% nll3 = neglogliperspike(cellresp, lfpredll3);
+% title(sprintf('Rsq = %2.3f, nLL/spike = %2.3f', rsq3, nll3))
