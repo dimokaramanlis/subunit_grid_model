@@ -170,18 +170,26 @@ rho2    = corr(imacts2',meanrespimg(imuse), 'Type', 'Spearman');
 %==========================================================================
 % MODEL 3: NONLINEAR SUBUNIT GRID     + NAKA-RUSHTON OUTPUT
 %==========================================================================
+% add pixel size in our starting guess
 mdlparams2.pxsize = pxsize;
 
-ops.batchsize = 64;
-ops.eta = 0.01;
-ops.beta1 = .9;
-ops.beta2 = .999;
-ops.epsmall = 1e-6;
-ops.lambda = 1e-4;
-ops.showfig = true;
-ops.Nepochs = round(4e5/numel( gflashdata.presentOrder));
-ops.delaylambda = false;
-ops.delaysubunit = false;
+% set optimization parameters
+opts.showfig   = true;
+opts.batchsize = 64;
+opts.eta       = 0.01;
+opts.beta1     = .9;
+opts.beta2     = .999;
+opts.epsmall   = 1e-6;
+opts.Nepochs   = round(4e5/numel( gflashdata.presentOrder));
+opts.lambda    = 0;
+
+% Obtain a good model initialization
+mdlparams3init = gfFitSubunitGridModel(mdlparams2, xstim, cellresp, opts,true);
+
+% Run optimization with a particular regularization strength (lambda)
+opts.lambda                = 1e-4;
+[mdlparams3, xerr, errfit] = gfFitSubunitGridModel(mdlparams3init, xstim, cellresp, opts,false);
+
 % 
 % tic;
 % [mdlparams3, ~, ~] = gfmodels.gfFitRank(mdlparams2, gfdata.stiminfo, respfit, ops);
@@ -193,7 +201,7 @@ ops.delaysubunit = false;
 % toc;
 tic;
 [mdlparams3, ~, ~] = gfmodels.gfFitNonlinearSubunitGapL1swish(...
-    mdlparams2, xstim, cellresp, ops,false);
+    mdlparams2, xstim, cellresp, opts,false);
 toc;
 
 %%
