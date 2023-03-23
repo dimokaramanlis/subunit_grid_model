@@ -1,5 +1,7 @@
 # subunit_grid_model
-Functions to fit subunit grid models to spiking data from retinal ganglion cells.
+Functions to fit subunit grid models to spiking data from retinal ganglion cells. 
+
+This repository is a supplement to the manuscript ["Natural stimuli drive concerted nonlinear responses in populations of retinal ganglion cells"](https://www.biorxiv.org/content/10.1101/2023.01.10.523412v1?rss=1).
 
 ## Requirements
 
