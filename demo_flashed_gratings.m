@@ -230,7 +230,7 @@ fsub.Renderer = 'painters';
 p = panel();
 p.pack('v', 4);
 for ii = 1:4
-    p(ii).pack('h', {0.25 0.25 0.25 0.25})
+    p(ii).pack('h', {0.3 0.3 0.2 0.2})
 end
 p.fontsize  = 8;
 p.de.margin = 1;
@@ -261,17 +261,18 @@ p.title(sprintf('Cell %d, %s\n', icell, typestr))
 gractsall  = [activ1 activ2 activ3];
 imactsall  = [imacts1' imacts2' imacts3'];
 meanimresp = meanrespimg(imuse);
-maxyim       = ceil(max(meanimresp)/2) * 2;
+maxyim      = ceil(max(meanimresp)/2) * 2;
 maxygr      = ceil(max(meanresp)/2) * 2;
 
 for imodel = 1:3
     p(1+imodel,3).select();cla;
-    axis square; ylim([0 maxy]);
+    axis square; ylim([0 maxygr]);
     yticks([0 maxygr/2 maxygr])
     line(gractsall(:, imodel), meanresp,...
         'MarkerSize',2,'Marker','o','LineStyle','none')
     if imodel==3
         xlabel('Receptive field prediction')
+        ylabel('Spike count')
     end
     
     p(1+imodel,4).select();cla;
