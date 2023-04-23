@@ -135,7 +135,7 @@ lfpredll1 = funfitGaussianModelParams(mdlparams1, xstim);
 tuning1 = squeeze(mean(reshape(lfpred, [Nphases, Noris, numel(barwidths)]), 1));
 %tuning1 = squeeze(max(reshape(lfpred, [4, 12, 25]), [], 1));
 
-guessactiv = calcGaussianActivationsGrating(mdlparams1.gaussparams, gflashdata.stiminfo);
+activ1 = calcGaussianActivationsGrating(mdlparams1.gaussparams, gflashdata.stiminfo);
 
 rsq1 = rsquare(meanresp, lfpred);
 nll1 = neglogliperspike(cellresp, lfpredll1);
@@ -159,7 +159,7 @@ lfpred2   = funfitDoGModelParams(mdlparams2, gflashdata.stiminfo);
 lfpredll2 = funfitDoGModelParams(mdlparams2, xstim);    
 tuning2 = squeeze(mean(reshape(lfpred2, [Nphases, Noris, numel(barwidths)]), 1));
 
-guessactiv = calcDoGActivationsGrating(mdlparams2, gflashdata.stiminfo);
+activ2 = calcDoGActivationsGrating(mdlparams2, gflashdata.stiminfo);
 
 % predict natural image activations
 
@@ -196,7 +196,7 @@ insig          = subunitoutputs * mdlparams3.subwts;
 lfpred3        = nakarushton( mdlparams3.outparams, insig);
 
 %tuning3 = squeeze(max(reshape(lfpred3, [4, 12, 25]),[], 1));
-tuning3 = squeeze(mean(reshape(lfpred3, [Nphases, Noris, numel(barwidths)]), 1));
+tuning3 = squeeze(mean(reshape(gather(lfpred3), [Nphases, Noris, numel(barwidths)]), 1));
 
 activ3 = subunitoutputs * mdlparams3.subwts/sum(mdlparams3.subwts);
 activ3 = gather(activ3);
@@ -220,6 +220,71 @@ rho3  = corr(imacts3',meanrespimg(imuse), 'Type', 'Spearman');
 % navigate all cells and experiments to get an understanding of their
 % nonlinear RF properties!
 
+fw   = 18; fh = 12; % figure width and height in cm
+fsub = figure('Color','w','Units', 'centimeters');
+fsub.ToolBar  = 'none'; %f1.MenuBar='none';
+fsub.Position =[2 2 fw fh]; 
+fsub.Renderer = 'painters';
+
+
+p = panel();
+p.pack('v', 4);
+for ii = 1:4
+    p(ii).pack('h', {0.25 0.25 0.25 0.25})
+end
+p.fontsize  = 8;
+p.de.margin = 1;
+p.margin = [2 10 1 10];
+
+p(1,2).select(); cla;
+plotLogTuning2D(barwidths, 1:Noris, tuningdata);
+caxis([min(tuningdata(:)) max(tuningdata(:))])
+yticks([1 Noris]); xticks([15 960])
+ylabel('Orientation')
+
+
+p(3,2).select(); cla;
+plotLogTuning2D(barwidths, 1:Noris, tuning2);
+caxis([min(tuning2(:)) max(tuning2(:))])
+yticks([1 Noris]); xticks([15 960])
+ylabel('Orientation')
+
+p(4,2).select(); cla;
+plotLogTuning2D(barwidths, 1:Noris, tuning3);
+caxis([min(tuningdata(:)) max(tuningdata(:))])
+yticks([1 Noris]); xticks([15 960])
+ylabel('Orientation')
+xlabel('Bar width (um)')
+
+p.title(sprintf('Cell %d, %s\n', icell, typestr))
+
+gractsall  = [activ1 activ2 activ3];
+imactsall  = [imacts1' imacts2' imacts3'];
+meanimresp = meanrespimg(imuse);
+maxyim       = ceil(max(meanimresp)/2) * 2;
+maxygr      = ceil(max(meanresp)/2) * 2;
+
+for imodel = 1:3
+    p(1+imodel,3).select();cla;
+    axis square; ylim([0 maxy]);
+    yticks([0 maxygr/2 maxygr])
+    line(gractsall(:, imodel), meanresp,...
+        'MarkerSize',2,'Marker','o','LineStyle','none')
+    if imodel==3
+        xlabel('Receptive field prediction')
+    end
+    
+    p(1+imodel,4).select();cla;
+    axis square; ylim([0 maxyim]);
+    yticks([0 maxyim/2 maxyim])
+    line(imactsall(:, imodel), meanrespimg(imuse),...
+        'MarkerSize',3,'Marker','o','LineStyle','none')
+    rho = corr(imactsall(:, imodel),meanrespimg(imuse), 'Type', 'Spearman');
+    title(sprintf("Sprearman's rho = %2.3f", rho))
+    if imodel==3
+        xlabel('Receptive field prediction')
+    end
+end
 
 % savepath = 'C:\Users\Karamanlis_Dimokrati\Documents\DimosFolder\conferences\202107_retinal circuits symposium\poster';
 % filename = 'example_onoffcell.pdf';
