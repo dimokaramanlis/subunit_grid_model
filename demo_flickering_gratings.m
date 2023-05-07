@@ -48,12 +48,30 @@ end
 fprintf('Cell %d selected, type is %s\n', icell, typestr)
 %%
 %-------------------------------------------------------------------------
-
-% estimate cell quality 
+% estimate cell quality by symmetrized Rsq in the frozen grating part
 % first find frozen spikes
-gflickerdata.rawdata.spikesbin
+Nparts       = numel(gflickerdata.rawdata);
+frozenspikes = cell(Nparts, 1);
+for ipart = 1:Nparts
+    partdata  = gflickerdata.rawdata(ipart);
+    Nframes   = size(partdata.spikesbin, 2);
+    spikesbin = partdata.spikesbin(icell, :);
+    runningFrames = partdata.stimPara.RunningFrames;
+    frozenFrames  = partdata.stimPara.FrozenFrames;
+    trialFrames   = runningFrames+frozenFrames;
+    
+    Ntrials     = floor(Nframes/trialFrames);
+    totalFrames = Ntrials*trialFrames;
+    
+    totalbin   = reshape(spikesbin(1:totalFrames), trialFrames, Ntrials);
+    frozenspikes{ipart}  = totalbin(runningFrames+Nt:end,:);
+end
+frozenbin  = cat(2, frozenspikes{:});
+gftrialrsq = imageTrialRsq( reshape(frozenbin', [1, size(frozenbin,2), size(frozenbin,1)]));
 
+fprintf('Grating symmetrized R2 = %2.2f\n', gftrialrsq)
 %-------------------------------------------------------------------------
+
 
 % let's first calculate an sta from the gratings
 % the code is parallelizing different cells
