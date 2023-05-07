@@ -1,53 +1,29 @@
+
+
+% demo_flickering_gratings
+
+% add repository path to MATLAB path
+addpath(genpath('..\subunit_grid_model'))
+
 %%
-%experiment = callExperimentFromList(88, true);
-experiment = callExperimentFromList(88, true);
+% set experiment folder
+expfolder = '20220301_60MEA_marmoset_left_s1';
+% load data from selected experiment
+expdata      = load(fullfile('..\subunit_grid_model', expfolder, 'expdata.mat'));
+% grating flash data
+gflickerdata = load(fullfile('..\subunit_grid_model', expfolder, 'gratingflicker_data.mat'));
+% imagesequence data
+fixmovdata   = load(fullfile('..\subunit_grid_model', expfolder, 'fixationmovie_data.mat'));
+%%
 
-%experiment = callExperimentFromList(72, true);
+screenfs = expdata.projector.refreshrate;
+pxsize  = expdata.projector.pixelsize*1e6;
+screenx = expdata.projector.screen(2);
+screeny = expdata.projector.screen(1);
+spX     = gflickerdata.spX; spY = gflickerdata.spY; 
 
-gfdata     = loadAnalyzedStimData(experiment, 'gratingflicker');
-gfastimdata = loadRawStimData(experiment, experiment.stimids.gratingflicker(1));
-% imId   = experiment.stimids.imagesequence(1);
-% imgdata = loadAnalyzedStimData(experiment, imId, ...
-%     {'sprankNatural', 'imageEnsemble', 'isartificial','meanCounts', ...
-%     'spaceVecX', 'spaceVecY', 'allActivations'});
-
-%-------------------------------------------------------------------------
-% load movie data
-
-fmid = experiment.stimids.fixationmovie(1);
-fixdata =  loadAnalyzedStimData(experiment, fmid, ...
-    {'options', 'frozenRates', 'frozentimes', 'fmValidRsq','linearpreds'});
-stimdata = loadRawStimData(experiment,fmid);
-fprintf('Separating running from frozen data... '); tic;
-[frozenbin, frozenRasters, runningbin, frozenfixations, runningfixations] = ...
-    loadFixationStimuliAndSpikesMouse(experiment, stimdata, fixdata.options);
-
-[idstoload, ~, newids] = unique(runningfixations(1,:));
-imEnsemble = loadSingleFrameImEnsemble(stimdata.stimPara, idstoload);
-
-% rewrite runnning list with the new ids
-runningfixations(1, :) = newids;
-
-[frozenidstoload, ~, newfrozenids] = unique(frozenfixations(1,:));
-imFrozenEnsemble = loadSingleFrameImEnsemble(stimdata.stimPara, frozenidstoload);
-
-% rewrite runnning list with the new ids
-frozenfixations(1, :) = newfrozenids;
-fprintf('Done! Took %2.2f s\n', toc);
-%-------------------------------------------------------------------------
-
-chid = experiment.stimids.frozencheckerflicker(1);
-chdata = loadAnalyzedStimData(experiment, chid, ...
-    {'contourpoints','rfmodelparams','temporalComponents','timeVec'});
-
-screenfs = experiment.projector.refreshrate;
-pxsize  = experiment.projector.pixelsize*1e6;
-screenx = experiment.projector.screen(2);
-screeny = experiment.projector.screen(1);
-spX = gfdata.spX; spY = gfdata.spY; 
-
-xmar = gfastimdata.stimPara.lmargin;
-ymar = gfastimdata.stimPara.bmargin;
+xmar = gflickerdata.rawdata(1).stimPara.lmargin;
+ymar = gflickerdata.rawdata(1).stimPara.bmargin;
 
 xpix = numel(spX); ypix = numel(spY);
 
@@ -59,21 +35,32 @@ xvals = linspace(-1, 1);
 pxWindow = round((cellWindow)/pxsize/2);
 mainpts  = generateHexSubunitGrid(NsubMax);
 
-stiminfo  = gfdata.stiminfo;
-Nt        = size(gfdata.staAll, 3);
-orderfit  = gfdata.orderfit;
-spikesfit = gfdata.spikesfit;
-frozenorder = gfdata.frozenorder;
-frozenRates = gfdata.frozenRates;
-ftimevec    = gfdata.frozenTimeVec;
-
-% stnmfpath  = fullfile(experiment.originalFolder,'data_analysis', 'stnmf');
-% stnmfdata = load(fullfile(stnmfpath, 'stnmf.mat'));
-% stnmfids  = [stnmfdata.cells(:).cluster_id];
-
-
+stiminfo  = gflickerdata.stiminfo;
+Nt        = size(gflickerdata.ktbas, 1);
+orderfit  = gflickerdata.orderfit;
+spikesfit = gflickerdata.spikesfit;
 %%
-icell      = 21; close all;
+icell = 20; icelltypeid = expdata.cellclus_id(icell); %38
+if icelltypeid >0
+    typestr = expdata.typelabels{icelltypeid};
+    else, typestr = 'Unclassified'; 
+end
+fprintf('Cell %d selected, type is %s\n', icell, typestr)
+%%
+%-------------------------------------------------------------------------
+
+% estimate cell quality 
+% first find frozen spikes
+gflickerdata.rawdata.spikesbin
+
+%-------------------------------------------------------------------------
+
+% let's first calculate an sta from the gratings
+% the code is parallelizing different cells
+calculateGratingFlickerSTA()
+
+
+%-------------------------------------------------------------------------
 
 cellspikes = spikesfit(icell, :)';
 
@@ -81,14 +68,6 @@ natcellspikes = squeeze(runningbin(icell, Nt:end, :));
 natcellspikes = natcellspikes(:);
         
 %-------------------------------------------------------------------------
-% % ----- Represent this filter (approximately) in temporal basis -------
-ktbasprs.neye = min(2,Nt); % Number of "identity" basis vectors near time of spike;
-ktbasprs.ncos = min(8,Nt); % Number of raised-cosine vectors to use  
-ktbasprs.kpeaks = [0 ((Nt-ktbasprs.neye)/2)];  % Position of 1st and last bump 
-ktbasprs.b = 1; % Offset for nonlinear scaling (larger -> more linear)
-ktbas = makeBasis_StimKernel(ktbasprs,Nt);
-%-------------------------------------------------------------------------
-
 stixelsForFit = 50;
 rfac   = 10 * 1.4826;
 
@@ -166,7 +145,7 @@ frozengens1 = getGaussGeneratorsFixMovie(experiment, ...
             imFrozenEnsemble, frozenfixations, mdlparams1, xmar, ymar);
 natpred1      = rlogistic4(nlnparams, frozengens1) * screenfs;
 %natpred1      = interp1(scents, svals, frozengens1,'linear','extrap')* screenfs;
-natrsq1 = rsquare( fixdata.frozenRates(icell, Nt:end)', natpred1);
+natrsq1 = rsquare( fixmovdata.frozenRates(icell, Nt:end)', natpred1);
 
 figure;
 subplot(2, 1, 1)
@@ -178,11 +157,11 @@ title(sprintf('Frozen grating prediction\n qualityRsq =  %2.2f, Rsq = %2.3f',...
 ylabel('Firing rate (sp/s)')
 
 subplot(2, 1, 2)
-plot(fixdata.frozentimes, fixdata.frozenRates(icell, :), ...
-    fixdata.frozentimes(Nt:end), natpred1)
+plot(fixmovdata.frozentimes, fixmovdata.frozenRates(icell, :), ...
+    fixmovdata.frozentimes(Nt:end), natpred1)
 title(sprintf('Natural movie prediction\n RsqGauss = %2.2f, RsqWN = %2.2f',...
-    natrsq1, fixdata.fmValidRsq(icell)));
-xlim([0 max(fixdata.frozentimes)])
+    natrsq1, fixmovdata.fmValidRsq(icell)));
+xlim([0 max(fixmovdata.frozentimes)])
 ylabel('Firing rate (sp/s)')
 xlabel('Time (s)')
 
@@ -227,7 +206,7 @@ frozengens2 = getDoGGeneratorsFixMovie(experiment, ...
 natpred2      = rlogistic4(nlnparams, frozengens2) * screenfs;
 %natpred2      = interp1(scents, svals, frozengens2,'linear','extrap')* screenfs;
 
-natrsq2 = rsquare( fixdata.frozenRates(icell, Nt:end)', natpred2);
+natrsq2 = rsquare( fixmovdata.frozenRates(icell, Nt:end)', natpred2);
 
 figure;
 subplot(2,1,1)
@@ -238,11 +217,11 @@ title(sprintf('Frozen grating prediction\n qualityRsq =  %2.2f, RsqDoG = %2.3f',
 ylabel('Firing rate (sp/s)')
 
 subplot(2,1,2)
-plot(fixdata.frozentimes, fixdata.frozenRates(icell, :), ...
-    fixdata.frozentimes(Nt:end), natpred2)
+plot(fixmovdata.frozentimes, fixmovdata.frozenRates(icell, :), ...
+    fixmovdata.frozentimes(Nt:end), natpred2)
 title(sprintf('Natural movie prediction\n RsqDoG = %2.2f, RsqWN = %2.2f',...
-    natrsq2, fixdata.fmValidRsq(icell)));
-xlim([0 max(fixdata.frozentimes)])
+    natrsq2, fixmovdata.fmValidRsq(icell)));
+xlim([0 max(fixmovdata.frozentimes)])
 ylabel('Firing rate (sp/s)')
 xlabel('Time (s)')
 
@@ -319,7 +298,7 @@ frozengens3 = getSubGridGeneratorsFixMovie(experiment, ...
 natpred3      = rlogistic4(nlnparams, frozengens3) * screenfs;
 %natpred3      = interp1(scents, svals, frozengens3,'linear','extrap')* screenfs;
 
-natrsq3 = rsquare( fixdata.frozenRates(icell, Nt:end)', natpred3);
+natrsq3 = rsquare( fixmovdata.frozenRates(icell, Nt:end)', natpred3);
 %--------------------------------------------------------------------------
 
 
@@ -333,10 +312,10 @@ title(sprintf('Frozen grating prediciton\nqualityRsq  =  %2.2f, RsqSubGrid = %2.
 ylabel('Firing rate (sp/s)')
 
 subplot(2,1,2)
-plot(fixdata.frozentimes, fixdata.frozenRates(icell, :), ...
-    fixdata.frozentimes(Nt:end), natpred3)
+plot(fixmovdata.frozentimes, fixmovdata.frozenRates(icell, :), ...
+    fixmovdata.frozentimes(Nt:end), natpred3)
 title(sprintf('Natural movie prediction\nRsqSubGrid = %2.2f, RsqWN = %2.2f',...
-    natrsq3, fixdata.fmValidRsq(icell)));
+    natrsq3, fixmovdata.fmValidRsq(icell)));
 ylabel('Firing rate (sp/s)')
 xlabel('Time (s)')
 
@@ -383,11 +362,11 @@ natpred4      = nakarushton(nlnparamsnr, frozengens4) * screenfs;
 %natpred4      = softplusfun3m(nlnparams, frozengens4) * screenfs;
 %natpred4      = interp1(scents, svals, frozengens4,'linear','extrap')* screenfs;
 
-natrsq4 = rsquare( fixdata.frozenRates(icell, Nt:end)', natpred4);
+natrsq4 = rsquare( fixmovdata.frozenRates(icell, Nt:end)', natpred4);
 %--------------------------------------------------------------------------
 Nstim = round(numel(natpred4)/5);
 [aa, imds] = sort(abs(natpred4 - natpred2),'descend');
-dataresp =fixdata.frozenRates(icell, Nt:end)';
+dataresp =fixmovdata.frozenRates(icell, Nt:end)';
 %rsquare( dataresp(imds(1:Nstim)), natpred2(imds(1:Nstim)))
 
 %effscnot = conv(scont,flip(mdlparams4.ktbasis*mdlparams4.ktwts),'valid');
@@ -409,13 +388,13 @@ ylabel('Firing rate (sp/s)')
 xlim([0 max(ftimevec)])
 
 subplot(2,1,2)
-plot(fixdata.frozentimes, fixdata.frozenRates(icell, :), ...
-    fixdata.frozentimes(Nt:end), natpred4)
+plot(fixmovdata.frozentimes, fixmovdata.frozenRates(icell, :), ...
+    fixmovdata.frozentimes(Nt:end), natpred4)
 title(sprintf('Natural movie prediction\nRsqSubGridSubSurr = %2.2f, RsqWN = %2.2f',...
-    natrsq4, fixdata.fmValidRsq(icell)));
+    natrsq4, fixmovdata.fmValidRsq(icell)));
 ylabel('Firing rate (sp/s)')
 xlabel('Time (s)')
-xlim([0 max(fixdata.frozentimes)])
+xlim([0 max(fixmovdata.frozentimes)])
 %%
 xprof = linspace(-200,200,500);
 wtratio = norm(mdlparams4.surrktwts)/norm(mdlparams4.ktwts);
@@ -478,13 +457,13 @@ nlnparams        = fitOutputNonlinearityML4(double(natgens), double(natcellspike
 frozengens5 = getStnmfGeneratorsFixMovie(experiment, ...
     imFrozenEnsemble, frozenfixations, stnmfparams, chdata.timeVec, mtvec);
 natpred5      = rlogistic4(nlnparams, frozengens5) * screenfs;
-natrsq5 = rsquare( fixdata.frozenRates(icell, Nt:end)', natpred5);
+natrsq5 = rsquare( fixmovdata.frozenRates(icell, Nt:end)', natpred5);
 
 figure;
-plot(fixdata.frozentimes, fixdata.frozenRates(icell, :), ...
-    fixdata.frozentimes(Nt:end), natpred5)
+plot(fixmovdata.frozentimes, fixmovdata.frozenRates(icell, :), ...
+    fixmovdata.frozentimes(Nt:end), natpred5)
 title(sprintf('Natural movie prediction\nRsqSTNMF = %2.2f, RsqWN = %2.2f',...
-    natrsq5, fixdata.fmValidRsq(icell)));
+    natrsq5, fixmovdata.fmValidRsq(icell)));
 ylabel('Firing rate (sp/s)')
 xlabel('Time (s)')
 
@@ -579,7 +558,7 @@ frozengens42 = getSubGridWithSurrGeneratorsFixMovie(experiment, ...
             imFrozenEnsemble, frozenfixations, mdlparams42, xmar, ymar);
 %natpred42      = rlogistic3(nlnparams, frozengens) * screenfs;
 natpred42      = interp1(scents, svals, frozengens42)* screenfs;
-natrsq42 = rsquare( fixdata.frozenRates(icell, Nt:end)', natpred42);
+natrsq42 = rsquare( fixmovdata.frozenRates(icell, Nt:end)', natpred42);
 %--------------------------------------------------------------------------
 
 figure;
@@ -592,10 +571,10 @@ title(sprintf('Frozen grating prediciton\nqualityRsq  =  %2.2f, RsqSubGridGlobal
 ylabel('Firing rate (sp/s)')
 
 subplot(2,1,2)
-plot(fixdata.frozentimes, fixdata.frozenRates(icell, :), ...
-    fixdata.frozentimes(Nt:end), natpred42)
+plot(fixmovdata.frozentimes, fixmovdata.frozenRates(icell, :), ...
+    fixmovdata.frozentimes(Nt:end), natpred42)
 title(sprintf('Natural movie prediction\nRsqSubGridGlobalSurr = %2.2f, RsqWN = %2.2f',...
-    natrsq42, fixdata.fmValidRsq(icell)));
+    natrsq42, fixmovdata.fmValidRsq(icell)));
 
 ylabel('Firing rate (sp/s)')
 xlabel('Time (s)')
