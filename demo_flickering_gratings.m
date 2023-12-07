@@ -7,7 +7,7 @@ addpath(genpath('..\subunit_grid_model'))
 
 %%
 % set experiment folder
-expfolder = '20220301_60MEA_marmoset_left_s1';
+expfolder = '20210803_252MEA_mouse_left_half_dorsal';
 % load data from selected experiment
 expdata      = load(fullfile('..\subunit_grid_model', expfolder, 'expdata.mat'));
 % grating flash data
@@ -20,7 +20,8 @@ screenfs = expdata.projector.refreshrate;
 pxsize  = expdata.projector.pixelsize*1e6;
 screenx = expdata.projector.screen(2);
 screeny = expdata.projector.screen(1);
-spX     = gflickerdata.spX; spY = gflickerdata.spY; 
+spX     = gflickerdata.spX; 
+spY = gflickerdata.spY; 
 
 xmar = gflickerdata.rawdata(1).stimPara.lmargin;
 ymar = gflickerdata.rawdata(1).stimPara.bmargin;
@@ -50,8 +51,10 @@ fprintf('Cell %d selected, type is %s\n', icell, typestr)
 %-------------------------------------------------------------------------
 % estimate cell quality by symmetrized Rsq in the frozen grating part
 % first find frozen spikes
-Nparts       = numel(gflickerdata.rawdata);
-frozenspikes = cell(Nparts, 1);
+Nparts        = numel(gflickerdata.rawdata);
+frozenspikes  = cell(Nparts, 1);
+runningspikes = cell(Nparts, 1);
+
 for ipart = 1:Nparts
     partdata  = gflickerdata.rawdata(ipart);
     Nframes   = size(partdata.spikesbin, 2);
@@ -65,21 +68,37 @@ for ipart = 1:Nparts
     
     totalbin   = reshape(spikesbin(1:totalFrames), trialFrames, Ntrials);
     frozenspikes{ipart}  = totalbin(runningFrames+Nt:end,:);
+    runningspikes{ipart}  = totalbin(Nt:runningFrames,:);
 end
 frozenbin  = cat(2, frozenspikes{:});
+runningbin = cat(2, runningspikes{:});
+
 gftrialrsq = imageTrialRsq( reshape(frozenbin', [1, size(frozenbin,2), size(frozenbin,1)]));
 
 fprintf('Grating symmetrized R2 = %2.2f\n', gftrialrsq)
+%%
 %-------------------------------------------------------------------------
-
-
 % let's first calculate an sta from the gratings
 % the code is parallelizing different cells
-calculateGratingFlickerSTA()
+% this part is typically long and is using the GPU, but the sta can be only
+% calculated once
 
+stimmat  = getGratingMatFromInfo(stiminfo, spX, spY);
+
+% we scale down our stimulus for calculating the STA, as it is only used
+% for initializing model fitting
+scfac = 5;
+stimdown = zeros(numel(spY)/scfac,numel(spX)/scfac, size(stimmat,3), 'single');
+for ii = 1:size(stimmat,3)
+    stimdown(:,:,ii) = imresize(stimmat(:,:,ii),1/scfac,'Method','box','Antialiasing',false);
+end
+
+sta = calculateGratingFlickerSTA(reshape(stimdown, [ypix*xpix/scfac^2, size(stiminfo,1)]),...
+    gflickerdata.spikesfit(icell, :), gflickerdata.orderfit);
+sta = reshape(sta, [ypix/scfac, xpix/scfac, Nt]);
 
 %-------------------------------------------------------------------------
-
+%%
 cellspikes = spikesfit(icell, :)';
 
 natcellspikes = squeeze(runningbin(icell, Nt:end, :));

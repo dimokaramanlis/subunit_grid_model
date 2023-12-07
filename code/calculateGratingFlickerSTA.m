@@ -1,53 +1,37 @@
-function sta = calculateGratingFlickerSTA(stimmat, runningspikes, stimorder, Nt)
+function sta = calculateGratingFlickerSTA(stimmat, runningspikes, stimorder)
 
 
-Nstim               = numel(runningspikes);
-[Ncells, Nframes, ~] = size(runningspikes{1});
-[Nyx, Nbase]         = size(stimmat);
+[Nt, Nstimuli] = size(stimorder);
+Ncells         = size(runningspikes, 1);
+[Nyx, Nbase]   = size(stimmat);
 
 
-assert(Nstim == numel(stimorder));
 % use GPU in a smart way: break in chunks of different pixels!!!
 
 %--------------------------------------------------------------------------
 %calculate stim chunks
-g=gpuDevice(1); availableMem = g.AvailableMemory*8 - 8e9; %in bits with buffer
-staMem    = Ncells*Nyx*Nt*32; 
-spikesMem = Ncells*(Nframes-Nt+1)*32; 
-stimMem   = Nyx*Nframes*32;
-totalMem  = (staMem+spikesMem+stimMem*2); %buffer of 500MB added
+g=gpuDevice(1); availableMem = g.AvailableMemory*8 - 5e9; %in bits with buffer
+staMem    = Ncells*Nyx*32; 
+spikesMem = Ncells*(Nstimuli)*32; 
+stimMem   = Nyx*Nstimuli*32;
+totalMem  = (staMem+spikesMem+stimMem);
 Nchunks   = ceil(totalMem/availableMem); 
 chunkSize = floor(Nyx/Nchunks);
 %--------------------------------------------------------------------------
-
 sta      = zeros(Ncells,Nyx,Nt,'single'); %preallocate sta in RAM
-spikes   = zeros(Ncells, Nframes-Nt+1, 'single','gpuArray');
+spikes   = single(gpuArray(runningspikes));
 %--------------------------------------------------------------------------
 
-msg = [];
+msg = [];tic;
 for ichunk = 1:Nchunks
     dimstart  = (ichunk - 1) * chunkSize + 1;
     dimstop   = min(ichunk * chunkSize, Nyx);
     chunkdims = dimstop - dimstart + 1;
     gpusta    = gpuArray.zeros(Ncells, chunkdims, Nt,'single'); %preallocate sta in RAM
-    chunkstim = gpuArray(stimmat(dimstart:dimstop, :));
-    stimulus  = zeros(chunkdims, Nframes,'single','gpuArray'); %preallocate stimulus
-
-    for istim = 1:Nstim
-        currorder = stimorder{istim};
-        spikesbin = single(runningspikes{istim}(:, Nt:end, :));
-        Nblocks   = size(currorder, 2);
-
-        for iblock = 1:Nblocks
-            spikes(:)   = spikesbin(:, :, iblock);
-            stimulus(:) = chunkstim(:, currorder(:, iblock));
-            stimulus    = 2*stimulus/255-1; %making stimulus into  mat of 1s and -1s
-
-            for it=1:Nt
-                gpusta(:,:,it) = gpusta(:,:,it) + spikes * stimulus(:, it:(end-Nt+it))';
-            end 
-        end
-    end
+    chunkstim = single(gpuArray(stimmat(dimstart:dimstop, :)));
+    for it=1:Nt
+        gpusta(:,:,it) = gpusta(:,:,it) + spikes * chunkstim(:, stimorder(it, :))';
+    end 
     sta(:, dimstart:dimstop, :) = gather(gpusta);
     %--------------------------------------------------------------------------
     fprintf(repmat('\b', 1, numel(msg)));
@@ -56,10 +40,9 @@ for ichunk = 1:Nchunks
     fprintf(msg);
     %--------------------------------------------------------------------------
     clear gpusta;
-    
+
 end
-sumspikes = cat(3, runningspikes{:});
-sumspikes = sum(sumspikes(:, :), 2);
+sumspikes = sum(runningspikes, 2);
 sta       = bsxfun(@rdivide, sta, sumspikes);%cast sta to double and divide by nspikes
 
 
