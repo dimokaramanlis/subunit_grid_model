@@ -99,73 +99,26 @@ sta = reshape(sta, [ypix/scfac, xpix/scfac, Nt]);
 
 %-------------------------------------------------------------------------
 %%
-cellspikes = spikesfit(icell, :)';
-
-natcellspikes = squeeze(runningbin(icell, Nt:end, :));
-natcellspikes = natcellspikes(:);
-        
 %-------------------------------------------------------------------------
-stixelsForFit = 50;
-rfac   = 10 * 1.4826;
+cellspikes    = spikesfit(icell, :)';
 
-% extract components for center
-csta    = reshape(squeeze(gfdata.staAll(icell, :, :)), [ypix, xpix, Nt]);
-csta    = 2 * single(csta)/255 - 1;
-% fit center surround rf, get center and surround temporal components
+cellspikes_nat = squeeze(runningbin(icell, Nt:end, :));
+cellspikes_nat = cellspikes_nat(:);
+%-------------------------------------------------------------------------
+% initialize Gauss model
 
-[~, imax]    = max(abs(csta(:)));
-[y0, x0, t0] = ind2sub(size(csta), imax);
-    
-rangeX = x0+(-stixelsForFit:stixelsForFit); rangeX = rangeX(rangeX>0 & rangeX<=xpix);
-rangeY = y0+(-stixelsForFit:stixelsForFit); rangeY = rangeY(rangeY>0 & rangeY<=ypix);
-zoomsta = reshape(csta(rangeY, rangeX, :), numel(rangeY)*numel(rangeX), Nt);
+dspx = mean(reshape(spX, scfac, []), 1);
+dspy = mean(reshape(spY, scfac, []), 1);
+ingaussmodel = initGaussModelFlicker(sta, cellspikes, stiminfo, orderfit, ...
+    dspx, dspy, gflickerdata.ktbas, scfac);
 
-% find significant pixels in the zoomed region
-[bpx, ~] = find(abs(zoomsta) > rfac*mad(csta(:),1));
-
-% extract temporal and spatial components
-tempcomp = mean(zoomsta(bpx,:),1)';
-spcomp   = reshape(zoomsta*tempcomp, numel(rangeY),numel(rangeX));
-
-baswts = tempcomp' * ktbas;
-
-cfit = abs(spcomp);
-cfit = cfit/max(cfit(:));
-   
-fitprms      = fitgaussrf(spX(rangeX), spY(rangeY), double(cfit));
-fitprms(3:4) = fitprms(3:4)/2;
-
-% get rmax
-rmax = min(min(fitprms(1), xpix - fitprms(1)),...
-    min(fitprms(2), ypix - fitprms(2)));
-
-guessactiv = gfmodels.calcGaussianActivationsGrating(fitprms, stiminfo);
-
-allspactivs = guessactiv(orderfit);
-allactivs   =  baswts * (ktbas' * allspactivs);
-[values, centers] = getNonlinearity(allactivs', cellspikes, 40, 1);
-outguess   = gfmodels.fitRLogistic3ToSpikes(double(centers), double(values));
-
-gmdlparams  = struct();
-gmdlparams.ktbasis     = ktbas;
-gmdlparams.ktwts       = baswts * outguess(2);
-gmdlparams.gaussparams = fitprms(1:5);
-gmdlparams.outparams   = [outguess(1) outguess(3)];
-gmdlparams.rmax        = rmax;
-
-%iuse = randperm(numel(cellspikes), min(numel(cellspikes)/2, 150000));
-
-tic;
-mdlparams1 = gflicker.fitGaussModel(gmdlparams, stiminfo, ...
-    gfdata.stimorder, double(cellspikes));
-toc;
-
-% tic;
-% % mdlparams1 = gflicker.fitGaussModel(gmdlparams, stiminfo, ...
-% %     orderfit(:, iuse), double(cellspikes(iuse)));
-% mdlparams1s = gflicker.fitGaussModel(gmdlparams, stiminfo, ...
-%     orderfit, double(cellspikes));
-% toc;
+%-------------------------------------------------------------------------
+% fit actual Gauss model
+fprintf('Fitting Gaussian RF model... ');tic;
+mdlparams1 = fitGaussModel(ingaussmodel, stiminfo, ...
+    gflickerdata.stimorder, double(cellspikes));
+fprintf('Done! Time elapsed: %2.2f s\n', toc);
+%-------------------------------------------------------------------------
 
 
 pred1 = gflicker.predictGaussModel(mdlparams1, stiminfo, frozenorder);
@@ -175,9 +128,9 @@ mdlparams1.ktwts = mdlparams1.ktwts';
 % get all activations from rfs and corresponding spikes
 natgens = getGaussGeneratorsFixMovie(experiment, ...
     imEnsemble, runningfixations, mdlparams1,  xmar, ymar);
-[svals, scents]  = getNonlinearity(natgens, natcellspikes, 40, 1);
+[svals, scents]  = getNonlinearity(natgens, cellspikes_nat, 40, 1);
 guess            = fitRLogisticToSpikes(double(scents), double(svals));
-nlnparams        = fitOutputNonlinearityML4(double(natgens), double(natcellspikes),  [0 guess(2:end)]);
+nlnparams        = fitOutputNonlinearityML4(double(natgens), double(cellspikes_nat),  [0 guess(2:end)]);
 frozengens1 = getGaussGeneratorsFixMovie(experiment, ...
             imFrozenEnsemble, frozenfixations, mdlparams1, xmar, ymar);
 natpred1      = rlogistic4(nlnparams, frozengens1) * screenfs;
@@ -235,9 +188,9 @@ mdlparams2.surrktwts = mdlparams2.surrktwts';
 
 natgens = getDoGGeneratorsFixMovie(experiment, ...
     imEnsemble, runningfixations, mdlparams2,  xmar, ymar);
-[svals, scents]  = getNonlinearity(natgens, natcellspikes, 40, 1);
+[svals, scents]  = getNonlinearity(natgens, cellspikes_nat, 40, 1);
 guess            = fitRLogisticToSpikes(double(scents), double(svals));
-nlnparams        = fitOutputNonlinearityML4(double(natgens), double(natcellspikes),  [0 guess(2:end)]);
+nlnparams        = fitOutputNonlinearityML4(double(natgens), double(cellspikes_nat),  [0 guess(2:end)]);
 frozengens2 = getDoGGeneratorsFixMovie(experiment, ...
             imFrozenEnsemble, frozenfixations, mdlparams2, xmar, ymar);
 natpred2      = rlogistic4(nlnparams, frozengens2) * screenfs;
@@ -326,10 +279,10 @@ rsq3  = rsquare( frozenRates(icell, :)', pred3*screenfs);
 %     imEnsemble, runningfixations, mdlparams3,  xmar, ymar);
 natgens = getSubGridGeneratorsFixMovie(experiment, ...
     imEnsemble, runningfixations, mdlparams3,  xmar, ymar);
-[svals, scents]  = getNonlinearity(natgens, natcellspikes, 40, 1);
+[svals, scents]  = getNonlinearity(natgens, cellspikes_nat, 40, 1);
 guess            = fitRLogisticToSpikes(double(scents), double(svals));
 guess(1) = 0;
-nlnparams        = fitOutputNonlinearityML4(double(natgens), double(natcellspikes),  guess);
+nlnparams        = fitOutputNonlinearityML4(double(natgens), double(cellspikes_nat),  guess);
 frozengens3 = getSubGridGeneratorsFixMovie(experiment, ...
             imFrozenEnsemble, frozenfixations, mdlparams3, xmar, ymar);
 natpred3      = rlogistic4(nlnparams, frozengens3) * screenfs;
@@ -387,7 +340,7 @@ toc;
 
 % [svals, scents]  = getNonlinearity(natgens, natcellspikes, 40, 1);
 % guess            = fitNakaRushtonToSpikes(double(scents), double(svals));
-nlnparamsnr        = fitOutputNakaRushton(double(natgens), double(natcellspikes));
+nlnparamsnr        = fitOutputNakaRushton(double(natgens), double(cellspikes_nat));
 
 % nlnparams        = fitOutputNonlinearityML4(double(natgens), double(natcellspikes),  nguess);
 %nlnparams        = fitSoftPlus3ML(double(natgens), double(natcellspikes));
@@ -487,10 +440,10 @@ mtvec    = (-(Nt-1/2):1:-1/2)*1/frefresh; %in seconds
 
 natgens = getStnmfGeneratorsFixMovie(experiment, ...
     imEnsemble, runningfixations, stnmfparams, chdata.timeVec, mtvec);
-[svals, scents]  = getNonlinearity(natgens, natcellspikes, 40, 1);
+[svals, scents]  = getNonlinearity(natgens, cellspikes_nat, 40, 1);
 guess            = fitRLogisticToSpikes(double(scents(~isnan(svals))), double(svals(~isnan(svals))));
 nguess = [0 guess(2:end)];
-nlnparams        = fitOutputNonlinearityML4(double(natgens), double(natcellspikes),  nguess);
+nlnparams        = fitOutputNonlinearityML4(double(natgens), double(cellspikes_nat),  nguess);
 frozengens5 = getStnmfGeneratorsFixMovie(experiment, ...
     imFrozenEnsemble, frozenfixations, stnmfparams, chdata.timeVec, mtvec);
 natpred5      = rlogistic4(nlnparams, frozengens5) * screenfs;
@@ -587,9 +540,9 @@ rsq42 = rsquare( frozenRates(icell, :)', pred42*screenfs);
 % movie preds
 natgens = getSubGridWithSurrGeneratorsFixMovie(experiment, ...
     imEnsemble, runningfixations, mdlparams42,  xmar, ymar);
-[svals, scents]  = getNonlinearity(natgens, natcellspikes, 40, 1);
+[svals, scents]  = getNonlinearity(natgens, cellspikes_nat, 40, 1);
 guess            = fitRLogisticToSpikes(double(scents), double(svals));
-nlnparams        = fitOutputNonlinearityML(double(natgens), double(natcellspikes), guess(2:end));
+nlnparams        = fitOutputNonlinearityML(double(natgens), double(cellspikes_nat), guess(2:end));
 
 frozengens42 = getSubGridWithSurrGeneratorsFixMovie(experiment, ...
             imFrozenEnsemble, frozenfixations, mdlparams42, xmar, ymar);
