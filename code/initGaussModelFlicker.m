@@ -32,12 +32,12 @@ fitprms(3:4) = fitprms(3:4)/2;
 rmax = min(min(fitprms(1), xpix*stascale - fitprms(1)),...
     min(fitprms(2), ypix*stascale - fitprms(2)));
 
-guessactiv = gfmodels.calcGaussianActivationsGrating(fitprms, stiminfo);
+guessactiv = calcGaussianActivationsGrating(fitprms, stiminfo);
 
 allspactivs = guessactiv(orderfit);
 allactivs   =  baswts * (ktbas' * allspactivs);
 [values, centers] = getNonlinearity(allactivs', cellspikes, 40, 1);
-outguess   = gfmodels.fitRLogistic3ToSpikes(double(centers), double(values));
+outguess   = fitRLogistic3ToSpikes(double(centers), double(values));
 %==========================================================================
 % populate model values
 gmodel             = struct();

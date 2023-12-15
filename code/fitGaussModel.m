@@ -39,7 +39,7 @@ params.gaussparams  = gmparams(1:5);
 params.outparams    = gmparams(6:7); 
 params.ktwts        = gmparams(8:end); 
 
-[lf, lg] = gflicker.funfitGaussModel(params, xx, xorder);    
+[lf, lg] = funfitGaussModel(params, xx, xorder);    
 
 Np       = sum(yy);
 
