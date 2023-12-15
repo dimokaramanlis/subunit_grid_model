@@ -11,7 +11,8 @@ switch funtype
             [0 guess(2:end)]);
         funoutput   = @(x) rlogistic4(nlnparams, x);
     case 'nakarushton'
-        
+        nlnparamsnr = fitOutputNakaRushton(double(gensfit), double(spikesfit));
+        funoutput   = @(x) nakarushton(nlnparamsnr, x);
 end
 
 preds         = funoutput(genspred);
