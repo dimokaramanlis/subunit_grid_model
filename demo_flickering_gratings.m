@@ -40,7 +40,7 @@ runningimages   = fixmovdata.runningImages;
 runningimages   = 2 * single(runningimages)/255 - 1;
 
 %%
-icell = 10; icelltypeid = expdata.cellclus_id(icell); %38
+icell = 26; icelltypeid = expdata.cellclus_id(icell); %38
 if icelltypeid >0
     typestr = expdata.typelabels{icelltypeid};
     else, typestr = 'Unclassified'; 
@@ -169,16 +169,9 @@ fprintf('Diff. of Gaussians model performance for natural movie, R^2 = %2.2f\n\n
 %%
 % fit Subunit Grid model
 
-opts = struct();
-
-opts.batchsize = 2000;
-opts.eta = 0.02;
-opts.beta1 = .9;
-opts.beta2 = .999;
-opts.epsmall = 1e-6;
-opts.lambda = 50e-5;
+opts         = getDefaultSGparams('flicker');
+opts.lambda  = 50e-5;
 opts.showfig = true; % whether to show fit progress
-opts.Nepochs = 40;
 
 fprintf('Fitting Subunit Grid (SG) RF model... ');tic;
 mdlparams3 = fitSubGridSubSurrModelNakaRushton(...
@@ -189,7 +182,7 @@ fprintf('Done! Time elapsed: %2.2f s\n', toc);
 
 pred3 = predictSubGridSubSurrModel(mdlparams3, stiminfo, frozenorder);
 rsq3  = rsquare( frozenRates, pred3*screenfs);
-fprintf('Diff. of Gaussians model performance for frozen gratings, R^2 = %2.2f\n', rsq3);
+fprintf('Subunit Grid model performance for frozen gratings, R^2 = %2.2f\n', rsq3);
 
 % get prediction for natural movie
 natgens3    = generatorsFixationMovie(mdlparams3, ...
@@ -199,7 +192,7 @@ frozengens3 = generatorsFixationMovie(mdlparams3, ...
 
 frpreds3 = fitAndPredictOutputNL(natgens3, frozengens3, cellspikes_nat, 'nakarushton');
 frpreds3 = frpreds3 * screenfs;
-natrsq3 = rsquare( frmovierates, frpreds3);
+natrsq3  = rsquare( frmovierates, frpreds3);
 fprintf('Subunit grid model performance for natural movie, R^2 = %2.2f\n\n', natrsq3);
 %--------------------------------------------------------------------------
 

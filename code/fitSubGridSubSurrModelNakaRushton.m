@@ -26,25 +26,29 @@ if ~isfield(mdlparams, 'subwts')
    mdlparams= initializeSubGrid(mdlparams, stiminfo, stimorder, yy);
 end
 %----------------------------------------------------------------------
-if showfig
-    fn = figure('Position',[100 100 1700 400]);
-    subplot(1,4,1);cla;
-    ax = gca; ax.Colormap = flipud(gray); axis equal;
-    subplot(1,4,2); cla;
-    axis square; ylim([-1 1])
-    subplot(1,4,3); cla;
-    axis square; xlim([-1 1]); ylim([0 1]);
-    subplot(1,4,4); cla;
-    axis square; xlim([0 Nepochs])
-    xlabel('Epochs'); ylabel('Neg. log-likelihood')
-end
-
 xnln    = linspace(-1,1);
 Nwt        = numel(mdlparams.ktwts);
 Nt         = size(mdlparams.ktbasis, 1);
 Nstimuli   = size(stimorder, 2);
 Nsubs      = numel(mdlparams.subwts);
 pxsize  = mdlparams.pxsize;
+%----------------------------------------------------------------------
+if showfig
+    fn = figure('Position',[100 100 1700 400]);
+    subplot(1,4,1);cla;
+    ax = gca; ax.Colormap = flipud(gray); axis equal;
+    xlim(mdlparams.gridcent(1) + [-1 1]*35*7.5/pxsize)
+    ylim(mdlparams.gridcent(2) + [-1 1]*35*7.5/pxsize)
+    subplot(1,4,2); cla;
+    axis square; ylim([-1 1])
+    subplot(1,4,3); cla;
+    axis square; xlim([-1 1]); ylim([0 1]);
+    ylabel('Subunit output'); xlabel('Subunit activation')
+    subplot(1,4,4); cla;
+    axis square; xlim([0 Nepochs])
+    xlabel('Epochs'); ylabel('Neg. log-likelihood')
+end
+%----------------------------------------------------------------------
 
 iorder = zeros(Nstimuli, Nepochs);
 for ii = 1:Nepochs
@@ -141,8 +145,7 @@ for ibatch = 1:Nbatches
         
         title(sprintf('subdiam: %2.1f, sub surr scale: %2.1f', ...
             mdlparams.subsigma*pxsize*4, mdlparams.subsurrsc))
-        xlim(mdlparams.gridcent(1) + [-1 1]*50*7.5/pxsize)
-        ylim(mdlparams.gridcent(2) + [-1 1]*50*7.5/pxsize)
+        
         
         
         subplot(1,4,2);cla;
