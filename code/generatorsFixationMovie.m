@@ -4,11 +4,16 @@ function generators = generatorsFixationMovie(modelparams, ...
 %   Detailed explanation goes here
 %--------------------------------------------------------------------------
 % let's figure out the model type
-if ~isfield(modelparams, 'surrsc')
-    modeltype = 'gauss';
+if isfield(modelparams, 'subwts')
+    modeltype = 'subunitgrid';
 else
-    modeltype = 'diffofgauss';
+    if ~isfield(modelparams, 'surrsc')
+        modeltype = 'gauss';
+    else
+        modeltype = 'diffofgauss';
+    end
 end
+
 %--------------------------------------------------------------------------
 
 Nx  = modelparams.screenx;
@@ -122,40 +127,40 @@ switch modeltype
 
     case 'subunitgrid'
         
-        modelparams(ii).subcnts(:, 1) = modelparams(ii).subcnts(:, 1) + xmar + 0.5;
-        modelparams(ii).subcnts(:, 2) = Ny - (modelparams(ii).subcnts(:, 2) + ymar + 0.5);
+        modelparams.subcnts(:, 1) = modelparams.subcnts(:, 1) + xmar + 0.5;
+        modelparams.subcnts(:, 2) = modelparams.screeny - (modelparams.subcnts(:, 2) + ymar + 0.5);
 
 
+        pxarr = round(200*modelparams.subsigma);
+        ikeep = modelparams.subwts > 0;
 
-        modelparams(ii).kt     = gpuArray(modelparams(ii).ktwts'     *...
-            modelparams(ii).ktbasis');
-        modelparams(ii).ktsurr = gpuArray(modelparams(ii).subsurrwt' *...
-            modelparams(ii).ktbasis');
-
-        pxarr = round(200*modelparams(ii).subsigma);
-        ikeep = modelparams(ii).subwts > 0;
-
-        xcents = modelparams(ii).subcnts(ikeep,1);
-        ycents = modelparams(ii).subcnts(ikeep,2);
+        xcents = modelparams.subcnts(ikeep,1);
+        ycents = modelparams.subcnts(ikeep,2);
         subfilters = (xx(:) - xcents').^2 + (yy(:) - ycents').^2;
         subfilters(sqrt(subfilters) > pxarr) = NaN; % filter useless values
 
-        subfilterscent = exp(-subfilters/(2* modelparams(ii).subsigma^2));
+        subfilterscent = exp(-subfilters/(2* modelparams.subsigma^2));
         subfilterscent(isnan(subfilters)) = 0;
-        subfilterscent   = subfilterscent./(2 * pi * modelparams(ii).subsigma^2);
+        subfilterscent   = subfilterscent./(2 * pi * modelparams.subsigma^2);
 
         subfilterssurr = exp(-subfilters/...
-            (2* (modelparams(ii).subsurrsc * modelparams(ii).subsigma)^2));
+            (2* (modelparams.subsurrsc * modelparams.subsigma)^2));
         subfilterssurr(isnan(subfilterssurr)) = 0;
         subfilterssurr   = subfilterssurr./...
-            (2 * pi *(modelparams(ii).subsurrsc * modelparams(ii).subsigma)^2);
+            (2 * pi *(modelparams.subsurrsc * modelparams.subsigma)^2);
 
-        modelparams(ii).subfilterscent = gpuArray(subfilterscent);
-        modelparams(ii).subfilterssurr = gpuArray(subfilterssurr);
+      
+        sumall = sum(modelparams.subwts);
+        subwts = modelparams.subwts(ikeep)*sumall/sum(modelparams.subwts(ikeep));
+        
+        
+        modelfilters.kt     = gpuArray(modelparams.ktwts'*modelparams.ktbasis');
+        modelfilters.ktsurr = gpuArray(modelparams.subsurrwt' *modelparams.ktbasis');
 
-        sumall = sum(modelparams(ii).subwts);
-        subwts = modelparams(ii).subwts(ikeep)*sumall/sum(modelparams(ii).subwts(ikeep));
-        modelparams(ii).subwts = gpuArray(subwts);
+        modelfilters.subfilterscent = gpuArray(subfilterscent);
+        modelfilters.subfilterssurr = gpuArray(subfilterssurr);
+        modelfilters.subwts         = gpuArray(subwts);
+        modelfilters.subbase        = modelparams.subbase;
 end
 
 
@@ -186,18 +191,18 @@ switch modeltype
             conv(spsignalsurr, flip( modelfilters.ktsurr), 'valid');
     %------------------------------------------------------------------    
     case 'subunitgrid'
-        spsignalscent = modelparams.subfilterscent' *...
+        spsignalscent = modelfilters.subfilterscent' *...
         reshape(blockstimulus, [ny * nx, Nframes]); 
-        spsignalssurr =  modelparams.subfilterssurr' *...
+        spsignalssurr =  modelfilters.subfilterssurr' *...
         reshape(blockstimulus, [ny * nx, Nframes]); 
 
-        prenlncent    = conv2(flip(modelparams.kt),     1, spsignalscent', 'valid');
-        prenlnsurr    = conv2(flip(modelparams.ktsurr), 1, spsignalssurr', 'valid');
+        prenlncent    = conv2(flip(modelfilters.kt),     1, spsignalscent', 'valid');
+        prenlnsurr    = conv2(flip(modelfilters.ktsurr), 1, spsignalssurr', 'valid');
 
-        gens = reshape(logisticfun(prenlncent + prenlnsurr +  modelparams.subbase),...
+        gens = reshape(logisticfun(prenlncent + prenlnsurr +  modelfilters.subbase),...
         size(prenlncent));
         % convolve with temporal filter
-        generators(:, iblock,imodel) = gather(gens *  modelparams.subwts);
+        generators = gather(gens *  modelfilters.subwts);
     %------------------------------------------------------------------
 end
   

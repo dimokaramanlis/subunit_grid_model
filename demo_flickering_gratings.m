@@ -34,6 +34,11 @@ spikesfit = gflickerdata.spikesfit;
 frozenorder = orderGratingFlicker(size(stiminfo,1), stimpara.secondseed, stimpara.FrozenFrames);
 hfrmat      = uint16(hankel(1:Nt, Nt:stimpara.FrozenFrames));
 frozenorder = frozenorder(hfrmat);
+frozenimages   = fixmovdata.frozenImages;
+frozenimages   = 2 * single(frozenimages)/255 - 1;
+runningimages   = fixmovdata.runningImages;
+runningimages   = 2 * single(runningimages)/255 - 1;
+
 %%
 icell = 10; icelltypeid = expdata.cellclus_id(icell); %38
 if icelltypeid >0
@@ -99,6 +104,7 @@ cellspikes    = spikesfit(icell, :)';
 cellspikes_nat = squeeze(fixmovdata.runningbin(icell, Nt:end, :));
 cellspikes_nat = cellspikes_nat(:);
 frmovierates   = squeeze(mean(fixmovdata.frozenbin(icell, Nt:end, :), 3))'*screenfs;
+
 %-------------------------------------------------------------------------
 %%
 % initialize Gauss model
@@ -127,9 +133,9 @@ fprintf('Gauss model performance for frozen gratings, R^2 = %2.2f\n', rsq1);
 
 % get prediction for natural movie
 natgens1 = generatorsFixationMovie(mdlparams1, ...
-    fixmovdata.runningImages, fixmovdata.runningfixations,xmar, ymar);
+    runningimages, fixmovdata.runningfixations,xmar, ymar);
 frozengens1 = generatorsFixationMovie(mdlparams1, ...
-    fixmovdata.frozenImages, fixmovdata.frozenfixations, xmar, ymar);
+    frozenimages, fixmovdata.frozenfixations, xmar, ymar);
 
 frpreds1 = fitAndPredictOutputNL(natgens1, frozengens1, cellspikes_nat, 'logistic4');
 frpreds1 = frpreds1 * screenfs;
@@ -151,9 +157,9 @@ fprintf('Diff. of Gaussians model performance for frozen gratings, R^2 = %2.2f\n
 % get prediction for natural movie
 
 natgens2 = generatorsFixationMovie(mdlparams2, ...
-    fixmovdata.runningImages, fixmovdata.runningfixations,xmar, ymar);
+    runningimages, fixmovdata.runningfixations,xmar, ymar);
 frozengens2 = generatorsFixationMovie(mdlparams2, ...
-    fixmovdata.frozenImages, fixmovdata.frozenfixations, xmar, ymar);
+    frozenimages, fixmovdata.frozenfixations, xmar, ymar);
         
 frpreds2 = fitAndPredictOutputNL(natgens2, frozengens2, cellspikes_nat, 'logistic4');
 frpreds2 = frpreds2 * screenfs;
@@ -171,7 +177,7 @@ opts.beta1 = .9;
 opts.beta2 = .999;
 opts.epsmall = 1e-6;
 opts.lambda = 50e-5;
-opts.showfig = true;
+opts.showfig = true; % whether to show fit progress
 opts.Nepochs = 40;
 
 fprintf('Fitting Subunit Grid (SG) RF model... ');tic;
@@ -183,15 +189,15 @@ fprintf('Done! Time elapsed: %2.2f s\n', toc);
 
 pred3 = predictSubGridSubSurrModel(mdlparams3, stiminfo, frozenorder);
 rsq3  = rsquare( frozenRates, pred3*screenfs);
-fprintf('Diff. of Gaussians model performance for frozen gratings, R^2 = %2.2f\n', rsq2);
+fprintf('Diff. of Gaussians model performance for frozen gratings, R^2 = %2.2f\n', rsq3);
 
 % get prediction for natural movie
 natgens3    = generatorsFixationMovie(mdlparams3, ...
-    fixmovdata.runningImages, fixmovdata.runningfixations, xmar, ymar);
+    runningimages, fixmovdata.runningfixations, xmar, ymar);
 frozengens3 = generatorsFixationMovie(mdlparams3, ...
-    fixmovdata.frozenImages,   fixmovdata.frozenfixations, xmar, ymar);
+    frozenimages,   fixmovdata.frozenfixations, xmar, ymar);
 
-frpreds3 = fitAndPredictOutputNL(natgens3, frozengens3, cellspikes_nat, 'logistic4');
+frpreds3 = fitAndPredictOutputNL(natgens3, frozengens3, cellspikes_nat, 'nakarushton');
 frpreds3 = frpreds3 * screenfs;
 natrsq3 = rsquare( frmovierates, frpreds3);
 fprintf('Subunit grid model performance for natural movie, R^2 = %2.2f\n\n', natrsq3);

@@ -28,14 +28,15 @@ end
 %----------------------------------------------------------------------
 if showfig
     fn = figure('Position',[100 100 1700 400]);
-    subplot(1,5,1);cla;
+    subplot(1,4,1);cla;
     ax = gca; ax.Colormap = flipud(gray); axis equal;
-    subplot(1,5,2); cla;
+    subplot(1,4,2); cla;
     axis square; ylim([-1 1])
-    subplot(1,5,3); cla;
+    subplot(1,4,3); cla;
     axis square; xlim([-1 1]); ylim([0 1]);
-    subplot(1,5,5); cla;
+    subplot(1,4,4); cla;
     axis square; xlim([0 Nepochs])
+    xlabel('Epochs'); ylabel('Neg. log-likelihood')
 end
 
 xnln    = linspace(-1,1);
@@ -73,8 +74,6 @@ wd = (dij/min(dij(dij>0))).^-2;
 wd(eye(size(wd),'logical')) = 0;
 %==========================================================================
 % setup bounds
-% lb  = [0.7*7.5/pxsize; 1; -Inf; -Inf;   0];
-% ub  = [5*7.5/pxsize; 20; Inf;  Inf; Inf];
 lb  = [zeros(Nsubs,1); -Inf(2 * Nwt,1); 0.7*7.5/pxsize;   1;  -Inf; 0;   0;   0];
 ub  = [  Inf(Nsubs,1);  Inf(2 * Nwt,1);   5*7.5/pxsize; Inf;  Inf; Inf; Inf; Inf];
 lb  = gpuArray(single(lb));
@@ -136,7 +135,7 @@ for ibatch = 1:Nbatches
     if showfig && mod(ibatch, 100) == 1
                
         figure(fn);
-        subplot(1,5,1);cla;
+        subplot(1,4,1);cla;
         plotSubunitGrid(double(gather(mdlparams.subcnts)),...
             double(gather(mdlparams.subwts)))
         
@@ -146,13 +145,13 @@ for ibatch = 1:Nbatches
         ylim(mdlparams.gridcent(2) + [-1 1]*50*7.5/pxsize)
         
         
-        subplot(1,5,2);cla;
+        subplot(1,4,2);cla;
         kt     = mdlparams.ktbasis * mdlparams.ktwts;
         surrkt = mdlparams.ktbasis * mdlparams.subsurrwt;
         line(1:Nt, kt/max(abs(kt)), 'Color', 'b')
         line(1:Nt, surrkt/max(abs(kt)), 'Color', 'r')
         
-        subplot(1,5,3);cla;
+        subplot(1,4,3);cla;
         subparams = [mdlparams.subbase 1];
         xnln      = linspace(min(nrange), max(nrange));
         subv      = rlogistic2(subparams, xnln);
@@ -160,15 +159,13 @@ for ibatch = 1:Nbatches
         xlim(gather(nrange));
         ylim(gather([min(subv) max(subv)]))
 
-        subplot(1,5,5);cla; 
+        subplot(1,4,4);cla; 
         errplot = movmean(errall, 100);
-        
         line(xerr, errplot, 'LineStyle', '-');
-        xlabel('Epochs');
         
         drawnow;
     end
-
+    %--------------------------------------------------------------------
 end
 
 errall = gather(errall);
@@ -179,7 +176,7 @@ iedge  = alldst>max(alldst) - 16/pxsize;
 mdlparams.subwts(iedge) = 0;
 isilence1 = mdlparams.subwts < max(mdlparams.subwts(~iedge))*.05;
 mdlparams.subwts(isilence1)   = 0;
-[gparams, ~] = gfmodels.fitCenterGaussSurr(mdlparams);
+[gparams, ~] = fitCenterGaussSurr(mdlparams);
 mdlparams.gaussparams = gparams;
 c = getEllipseFromNewParams(mdlparams.gaussparams, 2.5);
 isilence2 = ~inpolygon(mdlparams.subcnts(:,1), mdlparams.subcnts(:,2), ...
@@ -218,19 +215,12 @@ mdlparams.ktbasis   = gpuArray(single(mdlparams.ktbasis));
 mdlparams.ktwts     = gpuArray(single(mdlparams.ktwts));
 mdlparams.subsurrwt = gpuArray(single(mdlparams.subsurrwt));
 
-
-% mdlparams.subwts    = finparams(1:Nsubs);
-% mdlparams.ktwts     = finparams(Nsubs + (1:Nwt));
-% mdlparams.subsurrwt = finparams(Nsubs + Nwt + (1:Nwt));
-% mdlparams.subsigma  = finparams(Nsubs + 2 * Nwt + 1);
-% mdlparams.subsurrsc = finparams(Nsubs + 2 * Nwt + 2);
-% mdlparams.subbase   = finparams(Nsubs + 2 * Nwt + 3);
-% mdlparams.outparams = finparams(Nsubs + 2 * Nwt + (4:5));
-figure(fn);
-subplot(1,5,1);cla;
-plotSubunitGrid(double(gather(mdlparams.subcnts)),...
-    double(gather(mdlparams.subwts)))
-
+if showfig
+    figure(fn);
+    subplot(1,4,1);cla;
+    plotSubunitGrid(double(gather(mdlparams.subcnts)),...
+        double(gather(mdlparams.subwts)))
+end
 %==========================================================================
 end
 %==========================================================================
@@ -280,7 +270,7 @@ ktsurr = mdlparams.ktbasis * mdlparams.subsurrwt';
 % kt = ktfac * kt; 
 
 
-subcentacts  = Rfc .* ArgSubs(:, isubuse);
+subcentacts   = Rfc .* ArgSubs(:, isubuse);
 tempcentacts  = reshape(subcentacts(xorder, :), [Nt, Nstimuli * Nsubsuse]);
 tempcent      =  kt' * tempcentacts; clear tempcentacts;
 
@@ -293,19 +283,14 @@ allActs  = reshape(allActs, [Nstimuli, Nsubsuse]);
 allActs  = reshape(logisticfun(allActs + mdlparams.subbase), [Nstimuli, Nsubsuse]);
 
 gensignal = allActs * subwts(isubuse);
-
-
 outguess  = fitOutputNakaRushton(double(gather(gensignal)), double(yy));
+
 
 mdlparams.subwts    = gpuArray(single(subwts(:)));
 mdlparams.outparams = gpuArray(single(outguess(:)));
 mdlparams.ktbasis   = gpuArray(single(mdlparams.ktbasis));
 mdlparams.ktwts     = gpuArray(single(mdlparams.ktwts))';
 mdlparams.subsurrwt = gpuArray(single(mdlparams.subsurrwt))';
-
-% kappas =  log(mdlparams.subwts);
-% kappas(isinf(kappas)) = min(kappas(~isinf(kappas)))*1000;
-% mdlparams.kappas   = kappas;
 
 
 end
@@ -331,31 +316,29 @@ tempsurracts  = reshape(subsurracts(stimorder, :), [Nt, Nstim * Nsubs]);
 tempfin  = kt' * tempcentacts + ktsurr' * tempsurracts;
 tempfin  = reshape(tempfin, [size(stimorder,2), Nsubs]);
 
-
-RsubsNlin    = reshape(logisticfun(tempfin + mdlparams.subbase),[Nstim, Nsubs]);
-insignal     = RsubsNlin * mdlparams.subwts;
-
-outparams    = mdlparams.outparams;
+RsubsNlin   = reshape(logisticfun(tempfin + mdlparams.subbase),[Nstim, Nsubs]);
+insignal    = RsubsNlin * mdlparams.subwts;
+outparams   = mdlparams.outparams;
 [fall,jout] = nakarushton(outparams, insignal);
     
 nrange = [min(tempfin,[],'all') max(tempfin,[],'all')];
 
-cwts   = mdlparams.subwts;
-sumall = sum(cwts);
-
-wtvals = sort(cwts, 'descend');
-iuse = cwts > wtvals(100) & cwts > 0;
-wtfac = sumall/sum(cwts(iuse));
-Nsubsuse = nnz(iuse);
-
-tempactsred     = reshape(subcentacts(stimorder, iuse), [Nt, Nstim * Nsubsuse]);
-tempsurractsred = reshape(subsurracts(stimorder, iuse), [Nt, Nstim * Nsubsuse]);
-
-tempbaseprojcent = mdlparams.ktbasis' * tempactsred;
-tempbaseprojsurr = mdlparams.ktbasis' * tempsurractsred;
-
 if nargout > 1
-    
+    %----------------------------------------------------------------------
+    % triage weights for faster gradient calculations
+    cwts     = mdlparams.subwts;
+    sumall   = sum(cwts);
+    wtvals   = sort(cwts, 'descend');
+    iuse     = cwts > wtvals(100) & cwts > 0;
+    wtfac    = sumall/sum(cwts(iuse));
+    Nsubsuse = nnz(iuse);
+
+    tempactsred      = reshape(subcentacts(stimorder, iuse), [Nt, Nstim * Nsubsuse]);
+    tempsurractsred  = reshape(subsurracts(stimorder, iuse), [Nt, Nstim * Nsubsuse]);
+    tempbaseprojcent = mdlparams.ktbasis' * tempactsred;
+    tempbaseprojsurr = mdlparams.ktbasis' * tempsurractsred;
+    %----------------------------------------------------------------------
+    % calcuate gradients
     dfdz  = outparams(2) * fall .*(1-fall/outparams(1)) ./insignal;
 
     dNdg  = reshape(RsubsNlin .* (1 - RsubsNlin), [1, Nstim, Nsubs]);
@@ -383,24 +366,15 @@ if nargout > 1
     Jsurrkt = reshape(tempbaseprojsurr, [Nwt, Nstim, Nsubsuse]) .* dNdgred;
     Jsurrkt = reshape(Jsurrkt, [Nwt*Nstim, Nsubsuse]) * mdlparams.subwts(iuse) * wtfac;
     Jsurrkt = reshape(Jsurrkt, [Nwt, Nstim])';
-
-    %Jsub = reshape(jsub,[Nstim, Nsubs]) * mdlparams.subwts;
-    
+    %----------------------------------------------------------------------
+    % collect gradients
     gall  = [dfdz.* [RsubsNlin Jkt Jsurrkt Jsigma Jbase], jout];
-%     gall  = [dfdz.* [mdlparams.subwts'.*RsubsNlin Jkt Jsurrkt Jsigma Jbase ones(Nstim, 1)], ...
-%         fall/ mdlparams.outparams(2)];
-    %==========================================================================
+    
     gbatch =  -((yy./fall)' * gall - sum(gall, 1))/Np;
-
     wuse  = wd*mdlparams.subwts;
     gbatch(1:Nsubs) = gbatch(1:Nsubs) +  2* lambda * wuse'.* ((mdlparams.subwts>0))';
-
-    %gbatch(1:Nsubs) = gbatch(1:Nsubs) + lambda * (mdlparams.subwts>0)';
     gbatch = gbatch';
+    %----------------------------------------------------------------------
 end
 %==========================================================================
 end
-
-
-
-%==========================================================================
