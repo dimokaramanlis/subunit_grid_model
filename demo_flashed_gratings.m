@@ -172,14 +172,9 @@ rho2    = corr(imacts2',meanrespimg(imuse), 'Type', 'Spearman');
 mdlparams2.pxsize = pxsize;
 
 % set optimization parameters
-opts.showfig   = true;
-opts.batchsize = 64;
-opts.eta       = 0.01;
-opts.beta1     = .9;
-opts.beta2     = .999;
-opts.epsmall   = 1e-6;
-opts.Nepochs   = round(4e5/numel( gflashdata.presentOrder));
-opts.lambda    = 0;
+opts         = getDefaultSGparams('flashes');
+opts.Nepochs = round(4e5/numel( gflashdata.presentOrder));
+opts.showfig = true;
 
 % Obtain a good model initialization
 mdlparams3init = gfFitSubunitGridModel(mdlparams2, xstim, cellresp, opts,true);

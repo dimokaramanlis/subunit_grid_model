@@ -7,7 +7,7 @@ addpath(genpath('..\subunit_grid_model'))
 
 %%
 % set experiment folder
-expfolder = '20210803_252MEA_mouse_left_half_dorsal';
+expfolder = '20220301_60MEA_marmoset_left_s1';
 % load data from selected experiment
 expdata      = load(fullfile('..\subunit_grid_model', expfolder, 'expdata.mat'));
 % grating flash data
@@ -40,7 +40,7 @@ runningimages   = fixmovdata.runningImages;
 runningimages   = 2 * single(runningimages)/255 - 1;
 
 %%
-icell = 26; icelltypeid = expdata.cellclus_id(icell); %38
+icell = 43; icelltypeid = expdata.cellclus_id(icell); %38
 if icelltypeid >0
     typestr = expdata.typelabels{icelltypeid};
     else, typestr = 'Unclassified'; 
@@ -198,101 +198,43 @@ fprintf('Subunit grid model performance for natural movie, R^2 = %2.2f\n\n', nat
 
 %%
 
+f = figure;
+f.ToolBar='none'; f.Units = 'centimeters';
+f.Position = [1 10 40 15]; f.MenuBar = 'none';
+p = panel();
+p.pack('v',2);
+for ii = 1:2
+   p(ii).pack('v',3) 
+end
+gfpreds   = [pred1 pred2 pred3]*screenfs;
+natpreds  =  [frpreds1 frpreds2 frpreds3];
+modellabel = {'Gaussian', 'Diff. of Gaussians', 'Subunit grid'};
+rsqall = [rsq1 rsq2 rsq3];
+natrsqall = [natrsq1 natrsq2 natrsq3];
+p.de.margin = 3;
+for ii = 1:3
+    p(1, ii).margintop = 10;
+    p(2, ii).margintop = 10;
+end
+p(2).margintop = 15;
+p.margin = [2 2 1 6];
 
 
-figure;
-subplot(2,1,1)
-plot(ftimevec(Nt:end), frozenRates(icell, :), ...
-    ftimevec(Nt:end), pred2*screenfs);
-title(sprintf('Frozen grating prediction\n qualityRsq =  %2.2f, RsqDoG = %2.3f', ...
-    gfdata.allReliableRsq(icell), rsq2));
-ylabel('Firing rate (sp/s)')
-
-subplot(2,1,2)
-plot(fixmovdata.frozentimes, fixmovdata.frozenRates(icell, :), ...
-    fixmovdata.frozentimes(Nt:end), natpred2)
-title(sprintf('Natural movie prediction\n RsqDoG = %2.2f, RsqWN = %2.2f',...
-    natrsq2, fixmovdata.fmValidRsq(icell)));
-xlim([0 max(fixmovdata.frozentimes)])
-ylabel('Firing rate (sp/s)')
-xlabel('Time (s)')
-
-figure;
-
-subplot(1, 2, 1)
-c     = getEllipseFromNewParams(mdlparams2.gaussparams, 2);
-csurr = getEllipseFromNewParams(mdlparams2.gaussparams, 2 * mdlparams2.surrsc);
-
-axis equal; 
-xlim(mdlparams1.gaussparams(1) + 50 *[-1 1] * 7.5/pxsize); 
-ylim(mdlparams1.gaussparams(2) + 50 *[-1 1]* 7.5/pxsize); 
-line(c(1,:), c(2, :), 'Color', 'b')
-line(csurr(1,:), csurr(2, :), 'Color', 'r')
-mdlparams2.ktwts = mdlparams2.ktwts';
-mdlparams2.surrktwts = mdlparams2.surrktwts';
-
-subplot(1, 2, 2)
-axis square; xlim([1 Nt])
-line(1:Nt, mdlparams2.ktwts*mdlparams1.ktbasis', 'Color', 'b')
-line(1:Nt, mdlparams2.surrktwts*mdlparams1.ktbasis', 'Color', 'r')
-mdlparams2.pxsize = pxsize;
-% scontinds = imds(1:Nstim);
-% extrainds = 1:numel(effscnot);
-% extrainds(scontinds) =[];
-% scont(Nt+imds(1:Nstim))
-%%
-figure;
-subplot(2,1,1)
-
-plot(ftimevec(Nt:end), frozenRates(icell, :), ...
-    ftimevec(Nt:end), pred4*screenfs);
-title(sprintf('Frozen grating prediciton\nqualityRsq  =  %2.2f, RsqSubGridSubSurr = %2.3f', ...
-    gfdata.allReliableRsq(icell), rsq4));
-ylabel('Firing rate (sp/s)')
-xlim([0 max(ftimevec)])
-
-subplot(2,1,2)
-plot(fixmovdata.frozentimes, fixmovdata.frozenRates(icell, :), ...
-    fixmovdata.frozentimes(Nt:end), natpred4)
-title(sprintf('Natural movie prediction\nRsqSubGridSubSurr = %2.2f, RsqWN = %2.2f',...
-    natrsq4, fixmovdata.fmValidRsq(icell)));
-ylabel('Firing rate (sp/s)')
-xlabel('Time (s)')
-xlim([0 max(fixmovdata.frozentimes)])
-
-figure;
-subplot(2, 1, 1)
-plot(ftimevec(Nt:end), frozenRates(icell, :), ...
-    ftimevec(Nt:end), pred1*screenfs);
-title(sprintf('Frozen grating prediction\n qualityRsq =  %2.2f, Rsq = %2.3f',...
-    gfdata.allReliableRsq(icell), rsq1));
-
-ylabel('Firing rate (sp/s)')
-
-subplot(2, 1, 2)
-plot(fixmovdata.frozentimes, fixmovdata.frozenRates(icell, :), ...
-    fixmovdata.frozentimes(Nt:end), natpred1)
-title(sprintf('Natural movie prediction\n RsqGauss = %2.2f, RsqWN = %2.2f',...
-    natrsq1, fixmovdata.fmValidRsq(icell)));
-xlim([0 max(fixmovdata.frozentimes)])
-ylabel('Firing rate (sp/s)')
-xlabel('Time (s)')
-
-figure;
-
-subplot(1, 2, 1)
-c = getEllipseFromNewParams(mdlparams1.gaussparams, 2);
-axis equal; 
-xlim(mdlparams1.gaussparams(1) + 50 *[-1 1]* 7.5/pxsize); 
-ylim(mdlparams1.gaussparams(2) + 50 *[-1 1]* 7.5/pxsize); 
-line(c(1,:), c(2, :), 'Color', 'k')
-mdlparams1.ktwts = mdlparams1.ktwts';
-
-subplot(1, 2, 2)
-axis square; xlim([1 Nt])
-line(1:Nt, mdlparams1.ktwts*mdlparams1.ktbasis', 'Color', 'k')
-
-
-
-%%
+for ii = 1:2
+   p(1,ii).select(); cla;
+   yplot = [frozenRates gfpreds(:, ii)];
+   plot(yplot)
+   ax = gca; ax.Visible = 'off';
+   ax.Title.Visible = 'on';
+   ylim([0 max(yplot,[],'all')]); xlim([0 size(frozenRates, 1)])
+   title(sprintf('%s prediction for Gratings, R^2 = %2.2f', modellabel{ii}, rsqall(ii)))
+   
+   p(2,ii).select(); cla;
+   yplot = [frmovierates natpreds(:, ii)];
+   plot(yplot)
+   title(sprintf('%s prediction for Natural movie, R^2 = %2.2f', modellabel{ii}, natrsqall(ii)))
+   ax = gca;  ax.Visible = 'off';
+   ax.Title.Visible = 'on';
+   ylim([0 max(yplot,[],'all')]); xlim([0 size(frozenRates, 1)])
+end
 

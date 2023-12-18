@@ -16,6 +16,11 @@ switch modeltype
         opts.eta       = 0.02;
         opts.Nepochs   = 40;
     case 'flashes'
+		opts.lambda    = 0;
+		opts.batchsize = 64;
+		opts.eta       = 0.01;
+		opts.Nepochs   = 40;
+
 end
 
 end
