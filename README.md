@@ -1,9 +1,9 @@
 # subunit_grid_model
 Functions to fit subunit grid models to spiking data from retinal ganglion cells. 
 
-This repository is a supplement to the manuscript ["Natural stimuli drive concerted nonlinear responses in populations of retinal ganglion cells"](https://www.biorxiv.org/content/10.1101/2023.01.10.523412v1?rss=1).
+This repository is a supplement to the manuscript ["Nonlinear receptive fields evoke redundant retinal coding of natural scenes"](https://www.biorxiv.org/content/10.1101/2023.01.10.523412v1?rss=1).
 
-## Requirements
+## Requirements and installation
 
 - MATLAB >= R2016b
 - MATLAB Toolboxes:
@@ -14,9 +14,11 @@ This repository is a supplement to the manuscript ["Natural stimuli drive concer
 
 Model optimization happens on the GPU for performance reasons, but a GPU is not strictly required. Replacing `gpuArray` arrays with standard `single` or `double` arrays will do the job.
 
+To "install" the repository, just clone it or download and unpack a ZIP version of it (<1 min).
+
 ## Model fitting and predictions using data from the paper
 
-These can be downloaded from the repository https://gin.g-node.org/gollischlab/Karamanlis_Gollisch_2023_RGC_spiketrains_natural_movies_and_subunit_models. First you need to download and unpack the datasets in the same path as the repository.
+Data can be downloaded from the repository https://gin.g-node.org/gollischlab/Karamanlis_Gollisch_2023_RGC_spiketrains_natural_movies_and_subunit_models. First you need to download and unpack the datasets in the same path as the repository. Demos are expected to produce informative figures at their end and are expected to run for up to a few minutes for subunit model fitting (on a normal desktop computer with a GPU).
 
 ### Flashed gratings
 The script `demo_flashed_gratings.m` will guide you through data loading and model fitting. This script also uses the fitted model to generate predictions for natural images. 
