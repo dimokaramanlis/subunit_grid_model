@@ -197,15 +197,18 @@ fprintf('Subunit grid model performance for natural movie, R^2 = %2.2f\n\n', nat
 %--------------------------------------------------------------------------
 
 %%
+fw   = 18; fh = 9; % figure width and height in cm
 
-f = figure;
+f = figure('Color','w','Units', 'centimeters');
 f.ToolBar='none'; f.Units = 'centimeters';
-f.Position = [1 10 40 15]; f.MenuBar = 'none';
+f.Position = [2 2 fw fh]; f.MenuBar = 'none';
 p = panel();
 p.pack('v',2);
 for ii = 1:2
    p(ii).pack('v',3) 
 end
+txtsize = 8;
+
 gfpreds   = [pred1 pred2 pred3]*screenfs;
 natpreds  =  [frpreds1 frpreds2 frpreds3];
 modellabel = {'Gaussian', 'Diff. of Gaussians', 'Subunit grid'};
@@ -213,14 +216,17 @@ rsqall = [rsq1 rsq2 rsq3];
 natrsqall = [natrsq1 natrsq2 natrsq3];
 p.de.margin = 3;
 for ii = 1:3
-    p(1, ii).margintop = 10;
-    p(2, ii).margintop = 10;
+    p(1, ii).margintop = 7;
+    p(2, ii).margintop = 7;
 end
-p(2).margintop = 15;
-p.margin = [2 2 1 6];
+p(2).margintop = 10;
+p.fontsize = txtsize;
+p.margin = [1 1 1 5];
 
+frefresh = expdata.projector.refreshrate;
+tref     = 0.3*frefresh;
 
-for ii = 1:2
+for ii = 1:3
    p(1,ii).select(); cla;
    yplot = [frozenRates gfpreds(:, ii)];
    plot(yplot)
@@ -228,6 +234,13 @@ for ii = 1:2
    ax.Title.Visible = 'on';
    ylim([0 max(yplot,[],'all')]); xlim([0 size(frozenRates, 1)])
    title(sprintf('%s prediction for Gratings, R^2 = %2.2f', modellabel{ii}, rsqall(ii)))
+   liney    = max(frozenRates)/2 + [-1 1] * 25;
+   line(10*[1 1], liney, 'Color', 'k')
+   text(14, mean(liney), '50 sp/s', 'HorizontalAlignment', 'left','FontSize', txtsize-2)
+    line(size(frozenRates, 1)*0.99 - [tref 0], max(frozenRates)*0.3*[1 1], ...
+    'Color','k')
+   text(size(frozenRates, 1)*0.99, max(frozenRates)*0.45, '300 ms',...
+       'HorizontalAlignment', 'right','FontSize', txtsize-2)
    
    p(2,ii).select(); cla;
    yplot = [frmovierates natpreds(:, ii)];
@@ -236,5 +249,16 @@ for ii = 1:2
    ax = gca;  ax.Visible = 'off';
    ax.Title.Visible = 'on';
    ylim([0 max(yplot,[],'all')]); xlim([0 size(frozenRates, 1)])
+   
+   liney    = max(frmovierates)*0.8 + [-1 1] * 25;
+   line(5*[1 1], liney, 'Color', 'k')
+   text(10, mean(liney), '50 sp/s', 'HorizontalAlignment', 'left','FontSize', txtsize-2)
+   line(size(frozenRates, 1)*0.99 - [tref 0], max(frmovierates)*0.3*[1 1], ...
+       'Color','k')
+   text(size(frozenRates, 1)*0.99, max(frmovierates)*0.45, '300 ms',...
+       'HorizontalAlignment', 'right','FontSize', txtsize-2)
 end
 
+%% you can use the code below to save generated figure for the cell
+filename = fullfile('..\subunit_grid_model', sprintf('%s_cell_%d.pdf', expfolder, icell));
+p.export(filename, sprintf('-w%d',fw*10),sprintf('-h%d',fh*10), '-rp')
