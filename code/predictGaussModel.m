@@ -1,4 +1,4 @@
-function impreds = predictGaussModel(mdlparams, imEnsemble, nrx, nry)
+function [impreds, stagauss] = predictGaussModel(mdlparams, imEnsemble, nrx, nry)
 %UNTITLED Summary of this function goes here
 %   Detailed explanation goes here
 
@@ -11,11 +11,11 @@ rfparams    = [mdlparams.gaussparams 1];
 %rfparams(1:2) = rfparams(1:2) + 0.5;
 
 [cx, cy] = meshgrid(single(nrx), single(nry));
-stadog   = gauss2dfun(rfparams, {cx(:), cy(:)});
-stadog   = reshape(stadog,numel(nry), numel(nrx));
-stadog   = stadog/sum(abs(stadog(:)));
+stagauss   = gauss2dfun(rfparams, {cx(:), cy(:)});
+stagauss   = reshape(stagauss,numel(nry), numel(nrx));
+stagauss   = stagauss/sum(abs(stagauss(:)));
 
-impreds = stadog(:)' * imenuse;
+impreds = stagauss(:)' * imenuse;
 
 
 

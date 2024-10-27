@@ -1,4 +1,4 @@
-function impreds = predictSingleSubunitModel(mdlparams, imEnsemble, nrx, nry)
+function [impreds,sta] = predictSingleSubunitModel(mdlparams, imEnsemble, nrx, nry)
 %UNTITLED Summary of this function goes here
 %   Detailed explanation goes here
 
@@ -41,7 +41,10 @@ subactsn = reshape(rlogistic2(mdlparams.subparams, subacts), size(subacts));
 
 impreds = subwts' * subactsn;
 
-
+if nargout > 1
+    
+    sta = reshape(subfilters * subwts, [numel(nry), numel(nrx)]);
+end
 
 
         

@@ -32,9 +32,35 @@ pxsize = mdlparams.pxsize;
 Nsubs = numel(mdlparams.subwts);
 %----------------------------------------------------------------------
 if showfig
+    % initialize plots
     fn = figure('Position',[100 100 1700 400]);
-    subplot(1,5,1);cla;
+    subplot(1,5,1);
     ax = gca; ax.Colormap = flipud(gray); axis equal;
+    title('Current subunit grid and weights')
+    subplot(1,5,2);
+    ax = gca; axis square; 
+    title('Fitting progress')
+    ylabel('Neg. log-likelihood')
+    xlabel('Epochs')
+    
+    subplot(1,5,3);
+    ax = gca; axis square; 
+    title('Current subunit nonlinearity')
+    ylabel('Output')
+    xlabel('Input')
+    
+    subplot(1,5,4);
+    ax = gca; axis square; 
+    title('Current subunit profile')
+    ylabel('Output')
+    xlabel('X position (um)')
+    
+    subplot(1,5,5);
+    ax = gca; axis square; 
+    ylabel('Spike count')
+    xlabel('Pooled subunit output')
+    title('Current output nonlinearity')
+
 end
 
 xnln    = linspace(-1,1);
@@ -149,15 +175,11 @@ for ibatch = 1:Nbatches
 %         subalphas = double(gather(mdlparams.subwts));
 %         plotSubGridCircles(double(gather(mdlparams.subcnts)),...
 %             subalphas/max(subalphas), mdlparams.subsigma,'k')
-        
-        title(sprintf('subdiam: %2.1f, surrscale: %2.2f, surrweight: %2.2f', ...
-            mdlparams.subsigma*7.5*4, mdlparams.subsurrsc,mdlparams.subsurrwt / mdlparams.subsurrsc^2))
         xlim(mdlparams.gridcent(1) + [-1 1]*50*7.5/pxsize)
         ylim(mdlparams.gridcent(2) + [-1 1]*50*7.5/pxsize)
 
         subplot(1,5,2);cla; xlim([1 Nepochs])
         line(xerr(~isnan(xerr))*batchsize/Ndata, errall(~isnan(xerr)), 'LineStyle', '-');
-        xlabel('Epochs')
         
         subplot(1,5,3);cla;
         subvals = rlogistic2(mdlparams.subparams, xnln);
@@ -169,6 +191,11 @@ for ibatch = 1:Nbatches
         outplot =  linedogplot(mdlparams.subsigma*pxsize,...
             mdlparams.subsurrsc, mdlparams.subsurrwt, sizesub);
         line(sizesub, outplot);
+        tstr1 = sprintf('Current subunit profile (diam = %2.1f um)',...
+            mdlparams.subsigma*7.5*4);
+        tstr2 = sprintf('surr. scale = %2.2f, weight = %2.2f',...
+            mdlparams.subsurrsc, mdlparams.subsurrwt / mdlparams.subsurrsc^2);
+        title({tstr1, tstr2})
         drawnow;
 
         subplot(1,5,5);cla;
