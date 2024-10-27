@@ -36,7 +36,6 @@ stimmat   = getGratingMatFromInfo(gflashdata.stiminfo, spX, spY);
 Ngratings = size(stimmat, 3);
 sizesub   = linspace(-200, 200, 500);
 
-
 % set up images to match the screen and tranform values into Weber contrast
 
 %imuse = true(size(imgdata.isartificial)); 
