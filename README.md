@@ -18,7 +18,7 @@ To "install" the repository, just clone it or download and unpack a ZIP version 
 
 ## Model fitting and predictions using data from the paper
 
-Data can be downloaded from our [G-node repository](https://gin.g-node.org/gollischlab/Karamanlis_Gollisch_2023_RGC_spiketrains_natural_movies_and_subunit_models). First you need to download and unpack the datasets in the same path as the repository. Demos are expected to produce informative figures at their end and are expected to run for up to a few minutes for subunit model fitting (on a normal desktop computer with a GPU).
+Data can be downloaded from our [G-node repository](https://gin.g-node.org/gollischlab/Karamanlis_Gollisch_2023_RGC_spiketrains_natural_movies_and_subunit_models). First you need to download and unpack the datasets in the same path as the repository. Demos are expected to produce informative figures at their end and are expected to run for up to a few minutes for subunit model fitting (on a normal desktop computer with a GPU). Fitting is slower for flickering gratings.
 
 ### Flashed gratings
 The script `demo_flashed_gratings.m` will guide you through data loading and model fitting. This script also uses the fitted model to generate predictions for natural images. 
