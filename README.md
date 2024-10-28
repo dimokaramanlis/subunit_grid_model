@@ -30,8 +30,8 @@ Similar to the flashed gratings, the script `demo_flickering_gratings.m` will gu
 
 You will need datasets for which `gratingflicker_data.m` is available. You can change the path of the dataset at the beginning of the script.
 
-## Simulated data
-Under construction...
+## Fitted models
+The script `demo_read_model_params.m` contains code for reading the parameters of fitted models for marmoset and mouse retinal ganglion cells. These parameters were used in the manuscript and are stored as plain text files in this repository.
 
 ## Using your own data
 You can easily reuse the code for your own recordings, as long as the data are formatted in a similar manner. 
