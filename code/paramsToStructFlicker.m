@@ -4,9 +4,9 @@ function cellmdl = paramsToStructFlicker(mdlparams, gridcent, ktbas, dgrid, mult
  % calculate activations for every regularization
  
 
-Nwt = size(ktbas,2);
+Nwt       = size(ktbas,2);
 Nsubs     = numel(mdlparams) - 6 - 2*Nwt; 
-mainpts  = generateHexSubunitGrid(Nsubs);
+mainpts   = generateHexSubunitGrid(Nsubs);
  
 cellmdl.subcnts = gridcent + mainpts*dgrid;
 cellmdl.gridcent  = gridcent;
@@ -20,7 +20,7 @@ cellmdl.subbase   = mdlparams(Nsubs + 2 * Nwt + 3);
 cellmdl.outparams = mdlparams(Nsubs + 2 * Nwt + (4:6))';
 cellmdl.rmax      = 80 * multfac;
 cellmdl.ktbasis   = ktbas;
-cellmdl.kt       = ktbas * cellmdl.ktwts;
+cellmdl.kt        = ktbas * cellmdl.ktwts;
 
 
 end

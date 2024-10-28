@@ -10,7 +10,7 @@ addpath(genpath('..\subunit_grid_model'))
 expfolder = '20220301_60MEA_marmoset_left_s1';
 % load data from selected experiment
 expdata      = load(fullfile('..\subunit_grid_model', expfolder, 'expdata.mat'));
-% grating flash data
+% grating flicker data
 gflickerdata = load(fullfile('..\subunit_grid_model', expfolder, 'gratingflicker_data.mat'));
 % imagesequence data
 fixmovdata   = load(fullfile('..\subunit_grid_model', expfolder, 'fixationmovie_data.mat'));

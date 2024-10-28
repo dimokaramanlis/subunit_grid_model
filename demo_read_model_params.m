@@ -3,8 +3,9 @@
 addpath(genpath('..\subunit_grid_model'))
 
 %%
-% set experiment folder for grating flashes
-expfolder   = '20201112_252MEA_mouse_left_half_dorsal';
+% set experiment folder and select cell in experiment
+expfolder   = '20220301_60MEA_marmoset_left_s1';
+icell       = 5;
 
 % load model data
 modeltxt    = fullfile('..\subunit_grid_model', 'modelparameters', sprintf('%s.txt', expfolder));
@@ -16,7 +17,15 @@ textPart    = splitString{1};  % First part is the text
 pxsize      = str2double(splitString{2});  % Second part is the number
 
 % transform data to parameters for a single cell
-icell       = 5;
-mdlparams   = paramsToStructFlashes(mdlparams(icell, :), gridcenters(icell,:), 16/pxsize);
+switch textPart
+    case 'gratingflashes'
+        mdlparams   = paramsToStructFlashes(mdlparams(icell, :), gridcenters(icell,:), 16/pxsize);
+    case 'gratingflicker'
+        gflickerdata = load(fullfile('..\subunit_grid_model', expfolder, 'gratingflicker_data.mat'));
+        mdlparams    = paramsToStructFlicker(...
+            mdlparams(icell, :), gridcenters(icell,:), gflickerdata.ktbas, 16/pxsize, 7.5/pxsize);
+end
+
 fprintf('Current cell is %d, id %d, model regularization used was %1.6f\n', ...
     icell, cdata.data(icell,1), cdata.data(icell,2))
+
