@@ -1,3 +1,10 @@
+% This script loads and processes model parameters for a single cell from 
+% a specified experiment. It reads the parameters from a text file in the repository, 
+% extracts relevant information (grid centers, model parameters, pixel size), 
+% and then converts the parameters into a structured format using either 
+% 'paramsToStructFlashes' or 'paramsToStructFlicker' depending on the 
+% type of stimulus used in the experiment ('gratingflashes' or 
+% 'gratingflicker').
 
 % add repository path to MATLAB path
 addpath(genpath('..\subunit_grid_model'))
@@ -13,7 +20,7 @@ cdata       = importdata(modeltxt, ' ', 1);
 gridcenters = cdata.data(:,3:4);
 mdlparams   = cdata.data(:, 5:end);
 splitString = strsplit(cdata.textdata{1}, ' ');
-textPart    = splitString{1};  % First part is the text
+textPart    = splitString{1};              % First part is the text
 pxsize      = str2double(splitString{2});  % Second part is the number
 
 % transform data to parameters for a single cell

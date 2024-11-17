@@ -3,8 +3,11 @@ function [ diamum ] = getRFDiam( gauss, nsigma, pixelsize)
 %   Input:
 %       gauss: should be in screen units
 
-if isempty(gauss); diamum=NaN;  
-else; diamum=2*nsigma*pixelsize*det(gauss.sigma)^(1/4); end
+if isempty(gauss) 
+    diamum=NaN;  
+else
+    diamum=2*nsigma*pixelsize*det(gauss.sigma)^(1/4); 
+end
 
 end
  
