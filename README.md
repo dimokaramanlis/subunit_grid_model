@@ -1,7 +1,7 @@
 # subunit_grid_model
 Functions to fit subunit grid models to spiking data from retinal ganglion cells. 
 
-This repository is a supplement to the manuscript ["Nonlinear receptive fields evoke redundant retinal coding of natural scenes"](https://www.biorxiv.org/content/10.1101/2023.01.10.523412v1?rss=1).
+This repository is a supplement to the manuscript ["Nonlinear receptive fields evoke redundant retinal coding of natural scenes"](https://www.nature.com/articles/s41586-024-08212-3).
 
 ## Requirements and installation
 
