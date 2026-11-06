@@ -37,6 +37,10 @@ for iblock = 1:Nblocks
     
     fixrun = runningfixations(:, :, iblock);
     %------------------------------------------------------------------
+    % reset to gray (0): getRanges only writes the pixels that the shifted
+    % image covers, so the rest would keep values from the previous block
+    blockstimulus(:) = 0;
+    %------------------------------------------------------------------
     % generate stimulus
     for ifix = 1:size(fixrun, 2)
         [xmin, xmax, ymin, ymax, xOr, yOr] = getRanges(...
